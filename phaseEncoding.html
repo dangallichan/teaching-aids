@@ -68,6 +68,15 @@
                 <label for="phaseY" class="text-gray-600">Phase Encoding (Y-axis)</label>
                 <input type="range" id="phaseY" min="-100" max="100" value="0" step="1">
             </div>
+            <div class="flex flex-col gap-2">
+                <label for="phaseVis" class="text-gray-600">Phase Colour Opacity</label>
+                <input type="range" id="phaseVis" min="0" max="100" value="100">
+            </div>
+            <div class="flex flex-col gap-2">
+                <label for="gridSize" class="text-gray-600">Grid Size</label>
+                <input type="range" id="gridSize" min="5" max="35" value="25" step="1">
+                <!-- <span id="gridSizeValue" class="text-sm text-gray-500">25x25 Grid</span> -->
+            </div>
             <button id="resetButton" class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 transition-colors">Reset</button>
         </div>
         
@@ -81,13 +90,16 @@
             const ctx = canvas.getContext('2d');
             const phaseXSlider = document.getElementById('phaseX');
             const phaseYSlider = document.getElementById('phaseY');
+            const phaseVisSlider = document.getElementById('phaseVis');
+            const gridSizeSlider = document.getElementById('gridSize');
+            // const gridSizeValueSpan = document.getElementById('gridSizeValue');
             const resetButton = document.getElementById('resetButton');
 
             // Constants for the simulation
-            const gridSize = 25;
-            const numSpins = gridSize * gridSize;
-            const arrowScale = 0.06;
-            const circleRadius = 0.035;
+            let gridSize = 25;
+            let numSpins = gridSize * gridSize;
+            let arrowScale = 0.06 * 25 / gridSize;
+            let circleRadius = 0.035 * 25 / gridSize;
 
             // Store the initial spin positions
             let spinPositions = [];
@@ -107,10 +119,65 @@
                 }
             }
 
+
+            function getDivergingColor(phase) {
+                // Define 5 reference colors for the diverging scale
+                // const color1 = [33, 47, 85];      // Deep Blue/Purple
+                const color1 = [160, 160, 160]; // gray
+                const color2 = [116, 172, 219];    // Lighter Blue
+                const color3 = [255, 255, 255];    // White
+                const color4 = [255, 204, 102];    // Light Orange/Yellow
+                // const color5 = [255, 140, 0];      // Vibrant Orange
+                const color5 = color1;
+
+                // Define the phase breakpoints
+                const phase_b1 = -Math.PI;
+                const phase_b2 = -Math.PI / 2;
+                const phase_b3 = 0;
+                const phase_b4 = Math.PI / 2;
+                const phase_b5 = Math.PI;
+                
+                let r, g, b;
+
+                if (phase <= phase_b2) {
+                    // Interpolate from color1 to color2
+                    const t = (phase - phase_b1) / (phase_b2 - phase_b1);
+                    r = color1[0] + (color2[0] - color1[0]) * t;
+                    g = color1[1] + (color2[1] - color1[1]) * t;
+                    b = color1[2] + (color2[2] - color1[2]) * t;
+                } else if (phase <= phase_b3) {
+                    // Interpolate from color2 to color3
+                    const t = (phase - phase_b2) / (phase_b3 - phase_b2);
+                    r = color2[0] + (color3[0] - color2[0]) * t;
+                    g = color2[1] + (color3[1] - color2[1]) * t;
+                    b = color2[2] + (color3[2] - color2[2]) * t;
+                } else if (phase <= phase_b4) {
+                    // Interpolate from color3 to color4
+                    const t = (phase - phase_b3) / (phase_b4 - phase_b3);
+                    r = color3[0] + (color4[0] - color3[0]) * t;
+                    g = color3[1] + (color4[1] - color3[1]) * t;
+                    b = color3[2] + (color4[2] - color3[2]) * t;
+                } else {
+                    // Interpolate from color4 to color5
+                    const t = (phase - phase_b4) / (phase_b5 - phase_b4);
+                    r = color4[0] + (color5[0] - color4[0]) * t;
+                    g = color4[1] + (color5[1] - color4[1]) * t;
+                    b = color4[2] + (color5[2] - color4[2]) * t;
+                }
+                
+                return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+            }
+
             /**
              * Draws the entire simulation on the canvas.
              */
             function draw() {
+
+                // Update grid size from slider and display it
+                // gridSize = parseInt(gridSizeSlider.value);
+                gridSize = gridSizeSlider.value;
+                // gridSizeValueSpan.textContent = `${gridSize}x${gridSize} Grid`;
+
                 // Clear the canvas, making the background transparent.
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -127,12 +194,32 @@
                 ctx.lineWidth = 0.01;
 
                 // Get current phase angles from sliders
-                // const phaseXRad = (phaseXSlider.value * Math.PI) / 180;
-                // const phaseYRad = (phaseYSlider.value * Math.PI) / 180;
                 const phaseXRad = phaseXSlider.value * (gridSize-1) * Math.PI / 200;
                 const phaseYRad = phaseYSlider.value * (gridSize-1) * Math.PI / 200;
+                const visOpacity = phaseVisSlider.value / 100;
 
+       // --- PHASE VISUALIZATION LOGIC (UPDATED FOR DIVERGING SCALE) ---
+                if (visOpacity > 0) {
+                    const cellWidth = 2 / gridSize;
+                    const cellHeight = 2 / gridSize;
+                    ctx.globalAlpha = visOpacity;
 
+                    spinPositions.forEach(pos => {
+                        const { x, y } = pos;
+                        const totalPhase = (x * phaseXRad) + (y * phaseYRad);
+                        
+                        // A more robust modulo to handle negative values correctly
+                        const wrappedPhase = (((totalPhase + Math.PI) % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI) - Math.PI;
+
+                        // Use the new helper function to get the color
+                        ctx.fillStyle = getDivergingColor(wrappedPhase);
+
+                        ctx.fillRect(x - cellWidth / 2, y - cellHeight / 2, cellWidth, cellHeight);
+                    });
+                }
+
+                // Reset global alpha for drawing the arrows
+                ctx.globalAlpha = 1.0;
                 // Draw each spin
                 spinPositions.forEach(pos => {
                     const { x, y } = pos;
@@ -166,8 +253,8 @@
                     ctx.rotate(angle);
                     ctx.beginPath();
                     ctx.moveTo(0, 0);
-                    ctx.lineTo(-0.03, 0.015); 
-                    ctx.lineTo(-0.03, -0.015);
+                    ctx.lineTo(-arrowScale/2, arrowScale/4); 
+                    ctx.lineTo(-arrowScale/2, -arrowScale/4);
                     ctx.closePath();
                     ctx.fillStyle = '#4f46e5';
                     ctx.fill();
@@ -181,8 +268,10 @@
              * Resets the sliders to their initial values and redraws the plot.
              */
             function resetSimulation() {
+                gridSizeSlider.value = 25;
                 phaseXSlider.value = 0;
                 phaseYSlider.value = 0;
+                phaseVisSlider.value = 100;
                 draw();
             }
 
@@ -217,8 +306,15 @@
             }
 
             // Set up event listeners
+            gridSizeSlider.addEventListener('input', () => {
+                arrowScale = 0.06 * 25 / gridSize;
+                circleRadius = 0.035 * 25 / gridSize;
+                generateInitialSpins();
+                draw();
+            });
             phaseXSlider.addEventListener('input', draw);
             phaseYSlider.addEventListener('input', draw);
+            phaseVisSlider.addEventListener('input', draw);
             resetButton.addEventListener('click', resetSimulation);
             window.addEventListener('resize', resizeCanvas);
 
