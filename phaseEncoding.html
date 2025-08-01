@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MRI Phase Encoding Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            padding: 2rem;
+            background-color: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        @media (min-width: 768px) {
+            .container {
+                flex-direction: row;
+            }
+        }
+        canvas {
+            border-radius: 1rem;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            outline: none;
+            border-radius: 4px;
+            transition: opacity .2s;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4f46e5;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body class="p-4">
+    <div class="container">
+        <!-- Control Panel -->
+        <div class="flex flex-col gap-6 p-6 md:w-64">
+            <h1 class="text-2xl font-bold text-gray-800">MRI Phase Encoding Simulator</h1>
+            
+            <div class="flex flex-col gap-2">
+                <label for="phaseX" class="text-gray-600">Frequency Encoding (X-axis)</label>
+                <input type="range" id="phaseX" min="-100" max="100" value="0" step="1">
+            </div>
+            <div class="flex flex-col gap-2">
+                <label for="phaseY" class="text-gray-600">Phase Encoding (Y-axis)</label>
+                <input type="range" id="phaseY" min="-100" max="100" value="0" step="1">
+            </div>
+            <button id="resetButton" class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 transition-colors">Reset</button>
+        </div>
+        
+        <!-- Canvas for the Simulation -->
+        <canvas id="mriCanvas" ></canvas>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('mriCanvas');
+            const ctx = canvas.getContext('2d');
+            const phaseXSlider = document.getElementById('phaseX');
+            const phaseYSlider = document.getElementById('phaseY');
+            const resetButton = document.getElementById('resetButton');
+
+            // Constants for the simulation
+            const gridSize = 25;
+            const numSpins = gridSize * gridSize;
+            const arrowScale = 0.06;
+
+            // Store the initial spin positions
+            let spinPositions = [];
+
+            /**
+             * Generates the initial positions for the nuclear spins in a 15x15 grid.
+             */
+            function generateInitialSpins() {
+                spinPositions = [];
+                const spacing = 2 / (gridSize - 1);
+                for (let i = 0; i < gridSize; i++) {
+                    for (let j = 0; j < gridSize; j++) {
+                        const x = -1 + i * spacing;
+                        const y = -1 + j * spacing;
+                        spinPositions.push({x, y});
+                    }
+                }
+            }
+
+            /**
+             * Draws the entire simulation on the canvas.
+             */
+            function draw() {
+                // Clear the canvas, making the background transparent.
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Setup canvas transformations
+                const scale = canvas.width / 2.2;
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.scale(scale, -scale);
+                
+                // Reset line style for arrows
+                ctx.lineWidth = 0.01;
+
+                // Get current phase angles from sliders
+                // const phaseXRad = (phaseXSlider.value * Math.PI) / 180;
+                // const phaseYRad = (phaseYSlider.value * Math.PI) / 180;
+                const phaseXRad = phaseXSlider.value * (gridSize-1) * Math.PI / 100;
+                const phaseYRad = phaseYSlider.value * (gridSize-1) * Math.PI / 100;
+
+
+                // Draw each spin
+                spinPositions.forEach(pos => {
+                    const { x, y } = pos;
+                    // Apply a 90-degree offset to the initial phase so the arrows point up by default
+                    const totalPhase = (x * phaseXRad) + (y * phaseYRad) + Math.PI / 2;
+                    
+                    const u = Math.cos(totalPhase) * arrowScale;
+                    const v = Math.sin(totalPhase) * arrowScale;
+
+                    // Draw the arrow, centered on the grid point
+                    const startX = x - u / 2;
+                    const startY = y - v / 2;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(startX + .7*u, startY + .7*v);
+                    ctx.strokeStyle = '#4f46e5';
+                    ctx.stroke();
+
+                    // Draw the arrowhead with a sharper point
+                    const angle = Math.atan2(v, u);
+                    ctx.save();
+                    ctx.translate(startX + u, startY + v);
+                    ctx.rotate(angle);
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(-0.03, 0.015); 
+                    ctx.lineTo(-0.03, -0.015);
+                    ctx.closePath();
+                    ctx.fillStyle = '#4f46e5';
+                    ctx.fill();
+                    ctx.restore();
+                });
+
+                ctx.restore();
+            }
+
+            /**
+             * Resets the sliders to their initial values and redraws the plot.
+             */
+            function resetSimulation() {
+                phaseXSlider.value = 0;
+                phaseYSlider.value = 0;
+                draw();
+            }
+
+            /**
+             * Handles window resizing to make the canvas responsive.
+             */
+    function resizeCanvas() {
+                const sidebarWidth = 256; // Fixed width of the control panel
+                const availableWidth = window.innerWidth;
+                const availableHeight = window.innerHeight;
+                
+                // Calculate the size based on the available space
+                let size;
+                if (availableWidth > 768) {
+                    // On desktop, take up to 90% of the remaining space, up to 1000px max
+                    size = Math.min((availableWidth - sidebarWidth) * 0.9, availableHeight * 0.9, 1000);
+                } else {
+                    // On mobile, take up to 90% of the screen width
+                    size = Math.min(availableWidth * 0.9, availableHeight * 0.7);
+                }
+
+                // Make canvas a perfect square
+                canvas.width = size;
+                canvas.height = size;
+
+                // Adjust drawing constants for new size
+                // arrowScale = 0.15 * (size / 700);
+                // lineWidth = 0.02 * (size / 700);
+                // arrowheadSize = 0.08 * (size / 700);
+                
+                draw();
+            }
+
+            // Set up event listeners
+            phaseXSlider.addEventListener('input', draw);
+            phaseYSlider.addEventListener('input', draw);
+            resetButton.addEventListener('click', resetSimulation);
+            window.addEventListener('resize', resizeCanvas);
+
+            // Initial setup and drawing
+            generateInitialSpins();
+            resizeCanvas();
+        });
+    </script>
+</body>
+</html>
