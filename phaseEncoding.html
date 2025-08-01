@@ -87,6 +87,7 @@
             const gridSize = 25;
             const numSpins = gridSize * gridSize;
             const arrowScale = 0.06;
+            const circleRadius = 0.035;
 
             // Store the initial spin positions
             let spinPositions = [];
@@ -135,6 +136,13 @@
                 // Draw each spin
                 spinPositions.forEach(pos => {
                     const { x, y } = pos;
+
+                    // Draw the semi-transparent circle marker for the spin
+                    ctx.beginPath();
+                    ctx.arc(x, y, circleRadius, 0, 2 * Math.PI);
+                    ctx.fillStyle = 'rgba(79, 70, 229, 0.2)';
+                    ctx.fill();
+
                     // Apply a 90-degree offset to the initial phase so the arrows point up by default
                     const totalPhase = (x * phaseXRad) + (y * phaseYRad) + Math.PI / 2;
                     
