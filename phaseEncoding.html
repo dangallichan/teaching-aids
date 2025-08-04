@@ -62,11 +62,19 @@
             
             <div class="flex flex-col gap-2">
                 <label for="phaseX" class="text-gray-600">Frequency Encoding (X-axis)</label>
-                <input type="range" id="phaseX" min="-100" max="100" value="0" step="1">
+                <input type="range" id="phaseX" min="-100" max="100" value="0" step=".1">
+                <div class="flex gap-2 mt-2">
+                    <button id="stepBackward" class="flex-1 px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm">← Step Back</button>
+                    <button id="stepForward" class="flex-1 px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm">Step Forward →</button>
+                </div>
             </div>
             <div class="flex flex-col gap-2">
                 <label for="phaseY" class="text-gray-600">Phase Encoding (Y-axis)</label>
-                <input type="range" id="phaseY" min="-100" max="100" value="0" step="1">
+                <input type="range" id="phaseY" min="-100" max="100" value="0" step=".1">
+                <div class="flex gap-2 mt-2">
+                    <button id="stepBackwardY" class="flex-1 px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm">← Step Back</button>
+                    <button id="stepForwardY" class="flex-1 px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm">Step Forward →</button>
+                </div>
             </div>
             <div class="flex flex-col gap-2">
                 <label for="phaseVis" class="text-gray-600">Phase Colour Opacity</label>
@@ -77,6 +85,11 @@
                 <input type="range" id="gridSize" min="5" max="35" value="25" step="1">
                 <!-- <span id="gridSizeValue" class="text-sm text-gray-500">25x25 Grid</span> -->
             </div>
+            <!-- <div class="flex flex-col gap-2">
+                <label for="displayRange" class="text-gray-600">Extra Spins Outside ±2</label>
+                <input type="range" id="displayRange" min="0" max="10" value="0" step="1">
+                <span id="displayRangeValue" class="text-sm text-gray-500">0 spins</span>
+            </div> -->
             <button id="resetButton" class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 transition-colors">Reset</button>
         </div>
         
@@ -92,28 +105,57 @@
             const phaseYSlider = document.getElementById('phaseY');
             const phaseVisSlider = document.getElementById('phaseVis');
             const gridSizeSlider = document.getElementById('gridSize');
+            // const displayRangeSlider = document.getElementById('displayRange');
+            // const displayRangeValueSpan = document.getElementById('displayRangeValue');
             // const gridSizeValueSpan = document.getElementById('gridSizeValue');
             const resetButton = document.getElementById('resetButton');
+            const stepBackwardButton = document.getElementById('stepBackward');
+            const stepForwardButton = document.getElementById('stepForward');
+            const stepBackwardYButton = document.getElementById('stepBackwardY');
+            const stepForwardYButton = document.getElementById('stepForwardY');
 
             // Constants for the simulation
             let gridSize = 25;
             let numSpins = gridSize * gridSize;
-            let arrowScale = 0.06 * 25 / gridSize;
-            let circleRadius = 0.035 * 25 / gridSize;
+            const arrowFactor = 0.13; // Scale factor for arrow size
+            const circleFactor = 0.08; // Scale factor for circle radius
+            let arrowScale = arrowFactor * 25 / gridSize;
+            let circleRadius = circleFactor * 25 / gridSize;
 
             // Store the initial spin positions
             let spinPositions = [];
 
+            const extraSpins = 3;   // Number of spins outside the ±2 range
+
+            // Animation variables
+            let isAnimating = false;
+            let isAnimatingY = false;
+            let animationStartValue = 0;
+            let animationTargetValue = 0;
+            let animationStartTime = 0;
+            let animationStartValueY = 0;
+            let animationTargetValueY = 0;
+            let animationStartTimeY = 0;
+            const animationDuration = 1000; // 1 second
+
             /**
-             * Generates the initial positions for the nuclear spins in a 15x15 grid.
+             * Generates the initial positions for the nuclear spins in a grid.
              */
             function generateInitialSpins() {
                 spinPositions = [];
-                const spacing = 2 / (gridSize - 1);
-                for (let i = 0; i < gridSize; i++) {
-                    for (let j = 0; j < gridSize; j++) {
-                        const x = -1 + i * spacing;
-                        const y = -1 + j * spacing;
+                // const extraSpins = parseInt(displayRangeSlider.value);
+                
+                // Calculate total grid size: core grid + extra spins on each side
+                const totalGridSize = gridSize + (2 * extraSpins);
+                
+                // Spacing to fit the total grid from -displayRange to +displayRange
+                const displayRange = 2 + (extraSpins * 4 / (gridSize - 1));
+                const spacing = (2 * displayRange) / (totalGridSize - 1);
+                
+                for (let i = 0; i < totalGridSize; i++) {
+                    for (let j = 0; j < totalGridSize; j++) {
+                        const x = -displayRange + i * spacing;
+                        const y = -displayRange + j * spacing;
                         spinPositions.push({x, y});
                     }
                 }
@@ -121,6 +163,11 @@
 
 
             function getDivergingColor(phase) {
+                // Check for invalid input
+                if (isNaN(phase) || !isFinite(phase)) {
+                    return 'rgb(255, 255, 255)'; // Return white for invalid input
+                }
+                
                 // Define 5 reference colors for the diverging scale
                 // const color1 = [33, 47, 85];      // Deep Blue/Purple
                 const color1 = [160, 160, 160]; // gray
@@ -171,18 +218,28 @@
             /**
              * Draws the entire simulation on the canvas.
              */
-            function draw() {
+            function draw(animatedPhaseX = null, animatedPhaseY = null) {
 
                 // Update grid size from slider and display it
-                // gridSize = parseInt(gridSizeSlider.value);
-                gridSize = gridSizeSlider.value;
+                let rawGridSize = parseInt(gridSizeSlider.value);
+                
+                // Ensure gridSize is valid and always odd
+                if (isNaN(rawGridSize) || rawGridSize < 3) {
+                    gridSize = 25; // fallback to default
+                } else {
+                    // Make sure it's odd - if even, add 1
+                    gridSize = rawGridSize % 2 === 0 ? rawGridSize + 1 : rawGridSize;
+                }
+                
                 // gridSizeValueSpan.textContent = `${gridSize}x${gridSize} Grid`;
 
                 // Clear the canvas, making the background transparent.
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                // Setup canvas transformations
-                const scale = canvas.width / 2.2;
+                // Setup canvas transformations with dynamic scaling based on display range
+                // const extraSpins = parseInt(displayRangeSlider.value);
+                const displayRange = 2 + (extraSpins * 4 / (gridSize - 1));
+                const scale = canvas.width / (2.2 * displayRange);
                 const centerX = canvas.width / 2;
                 const centerY = canvas.height / 2;
 
@@ -193,15 +250,30 @@
                 // Reset line style for arrows
                 ctx.lineWidth = 0.01;
 
-                // Get current phase angles from sliders
-                const phaseXRad = phaseXSlider.value * (gridSize-1) * Math.PI / 200;
-                const phaseYRad = phaseYSlider.value * (gridSize-1) * Math.PI / 200;
-                const visOpacity = phaseVisSlider.value / 100;
+                // Get current phase angles from sliders (or use animated value)
+                const phaseXValue = animatedPhaseX !== null ? animatedPhaseX : parseFloat(phaseXSlider.value);
+                const phaseYValue = animatedPhaseY !== null ? animatedPhaseY : parseFloat(phaseYSlider.value);
+                const visOpacityValue = parseFloat(phaseVisSlider.value);
+                
+                // Validate all inputs
+                const validPhaseX = isNaN(phaseXValue) ? 0 : phaseXValue;
+                const validPhaseY = isNaN(phaseYValue) ? 0 : phaseYValue;
+                const validVisOpacity = isNaN(visOpacityValue) ? 100 : visOpacityValue;
+                
+                // Calculate phase: each step should give 90° rotation at edges (half of previous 180°)
+                // At edge position x = ±1, we want: stepSize * π/2 = π/2 (for 90° rotation)
+                // So each unit step on slider should contribute π/2 radians at the edge
+                const phaseXRad = validPhaseX * Math.PI / 2;
+                const phaseYRad = validPhaseY * Math.PI / 2;
+                const visOpacity = validVisOpacity / 100;
 
        // --- PHASE VISUALIZATION LOGIC (UPDATED FOR DIVERGING SCALE) ---
                 if (visOpacity > 0) {
-                    const cellWidth = 2 / gridSize;
-                    const cellHeight = 2 / gridSize;
+                    // const extraSpins = parseInt(displayRangeSlider.value);
+                    const totalGridSize = gridSize + (2 * extraSpins);
+                    const cellDisplayRange = 2 + (extraSpins * 4 / (gridSize - 1));
+                    const cellWidth = (2 * cellDisplayRange) / totalGridSize;
+                    const cellHeight = (2 * cellDisplayRange) / totalGridSize;
                     ctx.globalAlpha = visOpacity;
 
                     spinPositions.forEach(pos => {
@@ -218,8 +290,25 @@
                     });
                 }
 
-                // Reset global alpha for drawing the arrows
+                // Reset global alpha for drawing the boundary and arrows
                 ctx.globalAlpha = 1.0;
+                
+                // Draw the boundary square for the standard ±2 range
+                // Position it to fall between spins rather than cutting through them
+                const totalGridSize = gridSize + (2 * extraSpins);
+                const spacing = (2 * displayRange) / (totalGridSize - 1);
+                
+                // Calculate the boundary position to align with spin gaps
+                // We want the boundary to be at the edge of the ±2 region
+                const boundaryOffset = spacing / 2;
+                const boundarySize = 4 + spacing;
+
+                ctx.strokeStyle = '#3b82f6'; // Nice blue
+                ctx.lineWidth = 0.02;
+                ctx.beginPath();
+                ctx.rect(-2 - boundaryOffset, -2 - boundaryOffset, boundarySize, boundarySize);
+                ctx.stroke();
+                
                 // Draw each spin
                 spinPositions.forEach(pos => {
                     const { x, y } = pos;
@@ -269,10 +358,152 @@
              */
             function resetSimulation() {
                 gridSizeSlider.value = 25;
+                // displayRangeSlider.value = 0;
+                
+                // Update grid size and recalculate arrow/circle scales
+                let rawGridSize = parseInt(gridSizeSlider.value);
+                gridSize = rawGridSize % 2 === 0 ? rawGridSize + 1 : rawGridSize;
+                arrowScale = arrowFactor * 25 / gridSize;
+                circleRadius = circleFactor * 25 / gridSize;
+                
+                updateSliderRanges(); // Update ranges first
                 phaseXSlider.value = 0;
                 phaseYSlider.value = 0;
                 phaseVisSlider.value = 100;
+                generateInitialSpins(); // Regenerate spins with new range
                 draw();
+            }
+
+            /**
+             * Updates slider ranges to ensure exact 180-degree steps
+             * The slider range is adjusted so that integer steps always give exact rotations
+             */
+            function updateSliderRanges() {
+                let rawGridSize = parseInt(gridSizeSlider.value);
+                let actualGridSize = rawGridSize % 2 === 0 ? rawGridSize + 1 : rawGridSize;
+                
+                // Calculate the exact step size needed for 180-degree rotation
+                // For π phase change: stepSize * (gridSize-1) * π / sliderRange = π
+                // Therefore: stepSize = sliderRange / (gridSize-1)
+                // We want stepSize to be 1, so sliderRange = (gridSize-1)
+                const newRange = 0.5 * (actualGridSize - 1);
+                const newMin = -newRange;
+                const newMax = newRange;
+                
+                // Update slider attributes
+                phaseXSlider.min = newMin;
+                phaseXSlider.max = newMax;
+                phaseYSlider.min = newMin;
+                phaseYSlider.max = newMax;
+                
+                // Clamp current values to new range
+                const currentX = parseInt(phaseXSlider.value);
+                const currentY = parseInt(phaseYSlider.value);
+                phaseXSlider.value = Math.min(newMax, Math.max(newMin, currentX));
+                phaseYSlider.value = Math.min(newMax, Math.max(newMin, currentY));
+            }
+
+            /**
+             * Calculates the next step value (always exactly 1 unit)
+             */
+            function getNextStepValue(currentValue, direction) {
+                let rawGridSize = parseInt(gridSizeSlider.value);
+                let actualGridSize = rawGridSize % 2 === 0 ? rawGridSize + 1 : rawGridSize;
+                const maxRange = 0.5 * (actualGridSize - 1);
+                
+                let targetValue;
+                if (direction > 0) {
+                    // Step forward by exactly 1
+                    targetValue = currentValue + 1;
+                } else {
+                    // Step backward by exactly 1
+                    targetValue = currentValue - 1;
+                }
+                
+                // Clamp to current slider bounds
+                return Math.min(maxRange, Math.max(-maxRange, targetValue));
+            }
+
+            /**
+             * Animates the phase X slider to a target value
+             */
+            function animateToValue(targetValue) {
+                if (isAnimating) return; // Prevent multiple animations
+                
+                isAnimating = true;
+                animationStartValue = parseFloat(phaseXSlider.value);
+                animationTargetValue = targetValue;
+                animationStartTime = performance.now();
+                
+                function animationStep(timestamp) {
+                    const elapsed = timestamp - animationStartTime;
+                    const progress = Math.min(elapsed / animationDuration, 1);
+                    
+                    // Use easeInOutCubic for smooth animation
+                    const eased = progress < 0.5 
+                        ? 4 * progress * progress * progress 
+                        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+                    
+                    const currentAnimatedValue = animationStartValue + (animationTargetValue - animationStartValue) * eased;
+                    
+                    // Update the visual slider position
+                    phaseXSlider.value = currentAnimatedValue;
+                    
+                    // Draw with the animated value
+                    draw(currentAnimatedValue);
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animationStep);
+                    } else {
+                        isAnimating = false;
+                        // Final draw to ensure we're exactly at the target
+                        phaseXSlider.value = animationTargetValue;
+                        draw();
+                    }
+                }
+                
+                requestAnimationFrame(animationStep);
+            }
+
+            /**
+             * Animates the phase Y slider to a target value
+             */
+            function animateToValueY(targetValue) {
+                if (isAnimatingY) return; // Prevent multiple animations
+                
+                isAnimatingY = true;
+                animationStartValueY = parseFloat(phaseYSlider.value);
+                animationTargetValueY = targetValue;
+                animationStartTimeY = performance.now();
+                
+                function animationStep(timestamp) {
+                    const elapsed = timestamp - animationStartTimeY;
+                    const progress = Math.min(elapsed / animationDuration, 1);
+                    
+                    // Use easeInOutCubic for smooth animation
+                    const eased = progress < 0.5 
+                        ? 4 * progress * progress * progress 
+                        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+                    
+                    const currentAnimatedValue = animationStartValueY + (animationTargetValueY - animationStartValueY) * eased;
+                    
+                    // Update the visual slider position
+                    phaseYSlider.value = currentAnimatedValue;
+                    
+                    // Draw with the animated value
+                    draw(null, currentAnimatedValue);
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animationStep);
+                    } else {
+                        isAnimatingY = false;
+                        // Final draw to ensure we're exactly at the target
+                        phaseYSlider.value = animationTargetValueY;
+                        draw();
+                    }
+                }
+                
+                requestAnimationFrame(animationStep);
             }
 
             /**
@@ -307,19 +538,61 @@
 
             // Set up event listeners
             gridSizeSlider.addEventListener('input', () => {
-                arrowScale = 0.06 * 25 / gridSize;
-                circleRadius = 0.035 * 25 / gridSize;
+                let rawGridSize = parseInt(gridSizeSlider.value);
+                // Ensure it's odd
+                gridSize = rawGridSize % 2 === 0 ? rawGridSize + 1 : rawGridSize;
+                arrowScale = arrowFactor * 25 / gridSize;
+                circleRadius = circleFactor * 25 / gridSize;
+                updateSliderRanges(); // Update slider ranges when grid size changes
                 generateInitialSpins();
                 draw();
             });
-            phaseXSlider.addEventListener('input', draw);
+            // displayRangeSlider.addEventListener('input', () => {
+            //     const extraSpins = parseInt(displayRangeSlider.value);
+            //     const spinsText = extraSpins === 1 ? '1 spin' : `${extraSpins} spins`;
+            //     displayRangeValueSpan.textContent = spinsText;
+            //     generateInitialSpins();
+            //     draw();
+            // });
+            phaseXSlider.addEventListener('input', () => {
+                draw();
+            });
             phaseYSlider.addEventListener('input', draw);
             phaseVisSlider.addEventListener('input', draw);
             resetButton.addEventListener('click', resetSimulation);
+            
+            // Step animation event listeners
+            stepForwardButton.addEventListener('click', () => {
+                const currentValue = parseFloat(phaseXSlider.value);
+                const targetValue = getNextStepValue(currentValue, 1);
+                animateToValue(targetValue);
+            });
+            
+            stepBackwardButton.addEventListener('click', () => {
+                const currentValue = parseFloat(phaseXSlider.value);
+                const targetValue = getNextStepValue(currentValue, -1);
+                animateToValue(targetValue);
+            });
+
+            // Step animation event listeners for Y slider
+            stepForwardYButton.addEventListener('click', () => {
+                const currentValue = parseFloat(phaseYSlider.value);
+                const targetValue = getNextStepValue(currentValue, 1);
+                animateToValueY(targetValue);
+            });
+            
+            stepBackwardYButton.addEventListener('click', () => {
+                const currentValue = parseFloat(phaseYSlider.value);
+                const targetValue = getNextStepValue(currentValue, -1);
+                animateToValueY(targetValue);
+            });
+            
             window.addEventListener('resize', resizeCanvas);
 
             // Initial setup and drawing
             generateInitialSpins();
+            updateSliderRanges(); // Set up initial slider ranges
+            // displayRangeSlider.dispatchEvent(new Event('input')); // Initialize display range value
             resizeCanvas();
         });
     </script>
