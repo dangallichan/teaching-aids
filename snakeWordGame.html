@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- this game was created using a very short conversation with Google Gemini! -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Word Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        canvas {
+            border: 2px solid #6b7280;
+            background-color: #f3f4f6;
+            touch-action: none; /* Prevents default mobile browser actions like scrolling */
+        }
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            align-items: center;
+        }
+        @media (min-width: 1024px) {
+            .game-container {
+                flex-direction: row;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="game-container max-w-7xl mx-auto w-full">
+        <!-- Game Canvas -->
+        <div class="flex-grow flex-shrink-0 flex items-center justify-center p-4 bg-gray-800 rounded-lg shadow-xl">
+            <div class="relative w-full aspect-square max-w-full">
+                <canvas id="gameCanvas" class="w-full h-full rounded-lg"></canvas>
+                <div id="messageBox" class="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 text-center hidden rounded-lg">
+                    <p id="messageText" class="text-3xl font-bold"></p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Controls and Words Panel -->
+        <div class="w-full lg:w-96 flex-shrink-0 bg-gray-800 rounded-lg p-6 shadow-xl">
+            <h1 class="text-3xl font-bold mb-4 text-center text-indigo-400">Snake Word Game</h1>
+            <p class="text-sm text-gray-400 mb-6 text-center">
+                Eat the letters in the correct order to complete the word.
+            </p>
+
+            <div class="mb-6">
+                <label for="wordInput" class="block text-sm font-medium text-gray-300 mb-2">
+                    Enter Words (one per line):
+                </label>
+                <textarea id="wordInput" class="w-full p-2 h-32 rounded-md bg-gray-700 text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors" placeholder="e.g.,&#10;APPLE&#10;BANANA&#10;ORANGE">
+PYTHON
+JAVASCRIPT
+HTML
+CSS
+</textarea>
+            </div>
+
+            <div class="flex flex-col space-y-4 mb-6">
+                <button id="startGameButton" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transform transition-transform duration-200 hover:scale-105">
+                    Start Game
+                </button>
+            </div>
+
+            <div class="bg-gray-700 rounded-lg p-4">
+                <h3 class="text-xl font-bold text-indigo-300 mb-2">Game Info</h3>
+                <div class="text-gray-300 space-y-2">
+                    <p>Score: <span id="scoreDisplay" class="font-bold">0</span></p>
+                    <p>Current Word: <span id="currentWordDisplay" class="font-bold text-yellow-400"></span></p>
+                    <p>Next Letter: <span id="nextLetterDisplay" class="font-bold text-red-400 text-2xl"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM and Game State Variables ---
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            const startGameButton = document.getElementById('startGameButton');
+            const wordInput = document.getElementById('wordInput');
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            const currentWordDisplay = document.getElementById('currentWordDisplay');
+            const nextLetterDisplay = document.getElementById('nextLetterDisplay');
+            const messageBox = document.getElementById('messageBox');
+            const messageText = document.getElementById('messageText');
+
+            const words = [];
+            let currentWord = '';
+            let wordIndex = 0;
+            let score = 0;
+            let gameOver = false;
+            let gameLoopInterval;
+
+            const tileSize = 20;
+            let tileCountX, tileCountY;
+            let snake = [];
+            let foods = []; // Now an array to hold all letters
+            let direction = 'right';
+            let nextDirection = 'right';
+
+            // --- Game Initialization and Update Loop ---
+
+            // Function to initialize the game
+            function initGame() {
+                // Determine canvas size based on its container
+                const containerSize = canvas.parentNode.offsetWidth;
+                canvas.width = containerSize;
+                canvas.height = containerSize;
+
+                tileCountX = Math.floor(canvas.width / tileSize);
+                tileCountY = Math.floor(canvas.height / tileSize);
+
+                // Reset game state
+                snake = [{ x: 10, y: 10 }];
+                score = 0;
+                wordIndex = 0;
+                gameOver = false;
+                direction = 'right';
+                nextDirection = 'right';
+                messageBox.style.display = 'none';
+                
+                loadWords();
+                if (words.length === 0) {
+                    messageText.textContent = 'Please enter some words!';
+                    messageBox.style.display = 'flex';
+                    return;
+                }
+
+                currentWord = words.shift();
+                placeWordLetters(); // Place all letters at once
+                updateDisplays();
+                
+                // Clear any existing game loop and start a new one
+                if (gameLoopInterval) {
+                    clearInterval(gameLoopInterval);
+                }
+                gameLoopInterval = setInterval(gameLoop, 100);
+            }
+
+            // The main game loop
+            function gameLoop() {
+                if (gameOver) {
+                    clearInterval(gameLoopInterval);
+                    return;
+                }
+                update();
+                draw();
+            }
+
+            // Function to update the game state
+            function update() {
+                // Update direction
+                direction = nextDirection;
+                
+                // Calculate new head position
+                const head = { x: snake[0].x, y: snake[0].y };
+                switch (direction) {
+                    case 'up': head.y--; break;
+                    case 'down': head.y++; break;
+                    case 'left': head.x--; break;
+                    case 'right': head.x++; break;
+                }
+
+                // Check for collisions with walls
+                if (head.x < 0 || head.x >= tileCountX || head.y < 0 || head.y >= tileCountY) {
+                    endGame('Game Over: Hit the wall!');
+                    return;
+                }
+
+                // Check for collisions with self
+                for (let i = 1; i < snake.length; i++) {
+                    if (head.x === snake[i].x && head.y === snake[i].y) {
+                        endGame('Game Over: Bit yourself!');
+                        return;
+                    }
+                }
+
+                snake.unshift(head); // Add new head
+
+                // Check if snake eats any food item
+                const eatenFoodIndex = foods.findIndex(f => head.x === f.x && head.y === f.y);
+                if (eatenFoodIndex !== -1) {
+                    const eatenFood = foods[eatenFoodIndex];
+                    // Check if the eaten letter is the correct one in the sequence
+                    const nextLetter = currentWord[wordIndex];
+                    if (eatenFood.letter === nextLetter) {
+                        // Correct letter eaten
+                        foods.splice(eatenFoodIndex, 1); // Remove the food
+                        wordIndex++;
+                        score += 10;
+                        
+                        if (foods.length === 0) {
+                            // Word is complete
+                            if (words.length > 0) {
+                                currentWord = words.shift();
+                                wordIndex = 0;
+                                placeWordLetters(); // Place letters for the next word
+                            } else {
+                                endGame('Congratulations! You completed all the words!');
+                            }
+                        }
+                    } else {
+                        // Incorrect letter eaten
+                        endGame('Game Over: You ate the wrong letter!');
+                        return;
+                    }
+                } else {
+                    // If no food is eaten, remove the tail
+                    snake.pop();
+                }
+
+                // Update displays after any change
+                updateDisplays();
+            }
+
+            // Function to draw the game board
+            function draw() {
+                // Clear canvas
+                ctx.fillStyle = '#f3f4f6';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Draw snake
+                ctx.fillStyle = '#10b981';
+                snake.forEach(segment => {
+                    ctx.fillRect(segment.x * tileSize, segment.y * tileSize, tileSize - 2, tileSize - 2);
+                });
+
+                // Draw all food items (the letters)
+                foods.forEach(food => {
+                    ctx.fillStyle = '#ef4444'; // All letters are the same color now
+                    ctx.fillRect(food.x * tileSize, food.y * tileSize, tileSize, tileSize);
+                    
+                    ctx.fillStyle = 'white';
+                    ctx.font = `${tileSize - 4}px Inter`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(food.letter.toUpperCase(), food.x * tileSize + tileSize / 2, food.y * tileSize + tileSize / 2);
+                });
+            }
+
+            // --- Helper Functions ---
+
+            // Loads words from the textarea
+            function loadWords() {
+                words.length = 0; // Clear existing words
+                wordInput.value.trim().split('\n').forEach(word => {
+                    const trimmedWord = word.trim().toUpperCase();
+                    if (trimmedWord) {
+                        words.push(trimmedWord);
+                    }
+                });
+            }
+
+            // Places all letters for the current word randomly on the board, away from the walls
+            function placeWordLetters() {
+                foods = [];
+                const occupiedPositions = new Set();
+                snake.forEach(segment => occupiedPositions.add(`${segment.x},${segment.y}`));
+
+                for (let i = 0; i < currentWord.length; i++) {
+                    let x, y;
+                    do {
+                        // Place letters at least 1 tile away from the walls
+                        x = Math.floor(Math.random() * (tileCountX - 2)) + 1;
+                        y = Math.floor(Math.random() * (tileCountY - 2)) + 1;
+                    } while (occupiedPositions.has(`${x},${y}`));
+                    
+                    occupiedPositions.add(`${x},${y}`);
+                    foods.push({
+                        x: x,
+                        y: y,
+                        letter: currentWord[i]
+                    });
+                }
+            }
+
+            // Updates the score and word displays
+            function updateDisplays() {
+                scoreDisplay.textContent = score;
+                currentWordDisplay.textContent = currentWord;
+                nextLetterDisplay.textContent = currentWord[wordIndex] || '---';
+            }
+            
+            // Handles game over condition
+            function endGame(message) {
+                gameOver = true;
+                messageText.textContent = message;
+                messageBox.style.display = 'flex';
+                startGameButton.textContent = 'Restart Game';
+                clearInterval(gameLoopInterval);
+            }
+
+            // --- Event Listeners and Input Handling ---
+
+            // Keyboard input for desktop
+            window.addEventListener('keydown', e => {
+                const newDirection = e.key.toLowerCase();
+                if (['arrowup', 'w'].includes(newDirection) && direction !== 'down') {
+                    nextDirection = 'up';
+                } else if (['arrowdown', 's'].includes(newDirection) && direction !== 'up') {
+                    nextDirection = 'down';
+                } else if (['arrowleft', 'a'].includes(newDirection) && direction !== 'right') {
+                    nextDirection = 'left';
+                } else if (['arrowright', 'd'].includes(newDirection) && direction !== 'left') {
+                    nextDirection = 'right';
+                }
+            });
+
+            // Touch input for mobile
+            let touchStartX = 0;
+            let touchStartY = 0;
+
+            canvas.addEventListener('touchstart', e => {
+                e.preventDefault();
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            });
+
+            canvas.addEventListener('touchend', e => {
+                e.preventDefault();
+                const touchEndX = e.changedTouches[0].clientX;
+                const touchEndY = e.changedTouches[0].clientY;
+                const deltaX = touchEndX - touchStartX;
+                const deltaY = touchEndY - touchStartY;
+
+                if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                    // Horizontal swipe
+                    if (deltaX > 0 && direction !== 'left') {
+                        nextDirection = 'right';
+                    } else if (deltaX < 0 && direction !== 'right') {
+                        nextDirection = 'left';
+                    }
+                } else {
+                    // Vertical swipe
+                    if (deltaY > 0 && direction !== 'up') {
+                        nextDirection = 'down';
+                    } else if (deltaY < 0 && direction !== 'down') {
+                        nextDirection = 'up';
+                    }
+                }
+            });
+
+            // Start/Restart button click
+            startGameButton.addEventListener('click', () => {
+                initGame();
+                startGameButton.textContent = 'Restart Game';
+            });
+
+            // Initial game setup
+            initGame();
+        });
+    </script>
+</body>
+</html>
