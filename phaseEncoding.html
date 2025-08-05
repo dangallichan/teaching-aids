@@ -4,7 +4,7 @@
     <!-- This code was almost entirely written by Google Gemini  -->
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MRI Phase Encoding Simulator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -14,83 +14,348 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            margin: 0;
+            padding: 0;
         }
         .container {
             display: flex;
             flex-direction: column;
-            gap: 2rem;
-            padding: 2rem;
+            gap: 1rem;
+            padding: 1rem;
             background-color: white;
-            border-radius: 1.5rem;
+            border-radius: 1rem;
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 100vw;
+            max-height: 100vh;
+            overflow: auto;
         }
         @media (min-width: 768px) {
             .container {
                 flex-direction: row;
+                gap: 2rem;
+                padding: 2rem;
+                border-radius: 1.5rem;
+                max-width: none;
+                max-height: none;
             }
         }
         canvas {
             border-radius: 1rem;
+            touch-action: none; /* Prevent scrolling when touching canvas */
+            display: block; /* Ensure proper block display */
+            max-width: 100%;
+            max-height: 100%;
+            width: auto !important; /* Let canvas maintain its set dimensions */
+            height: auto !important; /* Let canvas maintain its set dimensions */
         }
+        
+        /* Enhanced mobile-friendly sliders */
         input[type="range"] {
             -webkit-appearance: none;
             width: 100%;
-            height: 8px;
+            height: 12px; /* Slightly thicker for easier touch */
             background: #e5e7eb;
             outline: none;
-            border-radius: 4px;
+            border-radius: 6px;
             transition: opacity .2s;
         }
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 20px;
-            height: 20px;
+            width: 28px; /* Larger for easier touch */
+            height: 28px;
             background: #4f46e5;
             cursor: pointer;
             border-radius: 50%;
-            border: 2px solid #fff;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            border: 3px solid #fff;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Mobile-specific button improvements */
+        button {
+            min-height: 44px; /* Apple's recommended minimum touch target */
+            touch-action: manipulation; /* Prevent zoom on double tap */
+        }
+        
+        /* Override for mobile arrow buttons */
+        @media (max-width: 767px) {
+            button {
+                font-size: 14px !important;
+                min-height: 32px !important;
+                padding: 4px 8px !important;
+            }
+            
+            /* Hide desktop layout on mobile */
+            .desktop-slider,
+            .desktop-buttons {
+                display: none !important;
+            }
+            
+            /* Show mobile inline controls */
+            .mobile-inline-controls {
+                display: flex !important;
+            }
+        }
+        
+        /* Desktop layout */
+        @media (min-width: 768px) {
+            /* Show desktop layout */
+            .desktop-slider,
+            .desktop-buttons {
+                display: block !important;
+            }
+            
+            .desktop-buttons {
+                display: flex !important;
+            }
+            
+            /* Hide mobile inline controls */
+            .mobile-inline-controls {
+                display: none !important;
+            }
+        }
+        
+        /* Toggle button for mobile controls */
+        .controls-toggle {
+            display: none;
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Mobile control panel overlay */
+        .control-panel-mobile {
+            display: block; /* Always create the element */
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0.3s, opacity 0.3s;
+        }
+        
+        .control-panel-mobile.show {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .control-panel-content {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 20px 20px 0 0;
+            padding: 20px;
+            max-height: 70vh;
+            overflow-y: auto;
+            transform: translateY(100%);
+            transition: transform 0.3s ease-out;
+        }
+        
+        .control-panel-mobile.show .control-panel-content {
+            transform: translateY(0);
+        }
+        
+        /* Mobile-specific control panel */
+        @media (max-width: 767px) {
+            .container {
+                padding: 8px;
+                gap: 8px;
+                flex-direction: column;
+                border-radius: 0;
+                box-shadow: none;
+            }
+            
+            .controls-toggle {
+                display: none; /* Hide toggle button since we're showing controls */
+            }
+            
+            .control-panel {
+                display: flex !important; /* Show normal controls on mobile */
+                flex-direction: row !important;
+                flex-wrap: wrap;
+                gap: 8px !important;
+                padding: 8px !important;
+                width: 100% !important;
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }
+            
+            .control-panel-mobile {
+                display: none !important; /* Hide mobile overlay since we're using inline controls */
+            }
+            
+            canvas {
+                border-radius: 8px;
+                width: 100% !important;
+                height: auto !important;
+                max-width: 100vw;
+                object-fit: contain; /* Maintain aspect ratio */
+            }
+            
+            h1 {
+                font-size: 1.1rem !important;
+                text-align: center;
+                margin-bottom: 8px !important;
+                width: 100%;
+                order: -1; /* Ensure title appears first */
+            }
+            
+            .control-panel > div {
+                flex: 1 1 30%; /* Three columns layout for controls */
+                min-width: 100px;
+                margin-bottom: 0 !important;
+            }
+            
+            /* Make the first two controls (phase encoding) take up more space to stay 2 per row */
+            .control-panel > div:nth-child(2),
+            .control-panel > div:nth-child(3) {
+                flex: 1 1 45% !important; /* Two columns for phase encoding controls */
+                min-width: 140px !important;
+            }
+            
+            /* Make reset button inline with other controls in mobile */
+            #resetButton {
+                padding: 8px 12px !important;
+                font-size: 11px !important;
+                min-height: 36px !important;
+                flex: 1 1 30% !important; /* Same as other controls */
+                min-width: 100px !important;
+            }
+            
+            label {
+                font-size: 0.75rem !important;
+                margin-bottom: 4px !important;
+                display: block;
+            }
+            
+            /* Thinner sliders */
+            input[type="range"] {
+                height: 8px !important;
+                margin: 4px 0 !important;
+            }
+            
+            input[type="range"]::-webkit-slider-thumb {
+                width: 20px !important;
+                height: 20px !important;
+                border: 2px solid #fff !important;
+            }
+            
+            /* Compact mobile buttons */
+            button {
+                font-size: 14px !important;
+                min-height: 32px !important;
+                touch-action: manipulation;
+            }
         }
     </style>
 </head>
 <body class="p-4">
     <div class="container">
-        <!-- Control Panel -->
-        <div class="flex flex-col gap-6 p-6 md:w-64">
+        <!-- Mobile Controls Toggle Button -->
+        <button class="controls-toggle" id="controlsToggle" onclick="console.log('Direct click'); document.getElementById('controlPanelMobile').classList.add('show');">Controls</button>
+        
+        <!-- Mobile Control Panel Overlay -->
+        <div class="control-panel-mobile" id="controlPanelMobile">
+            <div class="control-panel-content">
+                <h1 class="text-xl font-bold text-gray-800 mb-4">MRI Phase Encoding Simulator</h1>
+                
+                <div class="control-section">
+                    <label for="phaseXMobile" class="text-gray-600 font-medium block mb-2">Frequency Encoding (X-axis)</label>
+                    <div class="flex items-center gap-2">
+                        <button id="stepBackwardMobile" class="px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm font-medium">←</button>
+                        <input type="range" id="phaseXMobile" min="-100" max="100" value="0" step=".1" class="flex-1">
+                        <button id="stepForwardMobile" class="px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm font-medium">→</button>
+                    </div>
+                </div>
+                
+                <div class="control-section">
+                    <label for="phaseYMobile" class="text-gray-600 font-medium block mb-2">Phase Encoding (Y-axis)</label>
+                    <div class="flex items-center gap-2">
+                        <button id="stepBackwardYMobile" class="px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm font-medium">←</button>
+                        <input type="range" id="phaseYMobile" min="-100" max="100" value="0" step=".1" class="flex-1">
+                        <button id="stepForwardYMobile" class="px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm font-medium">→</button>
+                    </div>
+                </div>
+                
+                <div class="control-section">
+                    <label for="phaseVisMobile" class="text-gray-600 font-medium block mb-2">Opacity</label>
+                    <input type="range" id="phaseVisMobile" min="0" max="100" value="100">
+                </div>
+                
+                <div class="control-section">
+                    <label for="gridSizeMobile" class="text-gray-600 font-medium block mb-2">Grid Size</label>
+                    <input type="range" id="gridSizeMobile" min="5" max="35" value="25" step="1">
+                </div>
+                
+                <button id="resetButtonMobile" class="w-full mt-4 px-4 py-3 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 transition-colors font-medium">Reset</button>
+                
+                <button class="w-full mt-3 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors" onclick="document.getElementById('controlPanelMobile').classList.remove('show')">Close Controls</button>
+            </div>
+        </div>
+        
+        <!-- Desktop Control Panel -->
+        <div class="flex flex-col gap-6 p-6 md:w-64 control-panel">
             <h1 class="text-2xl font-bold text-gray-800">MRI Phase Encoding Simulator</h1>
             
             <div class="flex flex-col gap-2">
-                <label for="phaseX" class="text-gray-600">Frequency Encoding (X-axis)</label>
-                <input type="range" id="phaseX" min="-100" max="100" value="0" step=".1">
-                <div class="flex gap-2 mt-2">
-                    <button id="stepBackward" class="flex-1 px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm">← Step Back</button>
-                    <button id="stepForward" class="flex-1 px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm">Step Forward →</button>
+                <label for="phaseX" class="text-gray-600 font-medium">Frequency Encoding (X-axis)</label>
+                <!-- Desktop layout: slider above, buttons below -->
+                <input type="range" id="phaseX" min="-100" max="100" value="0" step=".1" class="desktop-slider">
+                <div class="flex gap-2 mt-2 desktop-buttons">
+                    <button id="stepBackward" class="flex-1 px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium">←</button>
+                    <button id="stepForward" class="flex-1 px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium">→</button>
+                </div>
+                <!-- Mobile layout: buttons at slider ends -->
+                <div class="items-center gap-2 mobile-inline-controls">
+                    <button id="stepBackwardMobileInline" class="px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm font-medium">←</button>
+                    <input type="range" id="phaseXMobileInline" min="-100" max="100" value="0" step=".1" class="flex-1">
+                    <button id="stepForwardMobileInline" class="px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm font-medium">→</button>
                 </div>
             </div>
             <div class="flex flex-col gap-2">
-                <label for="phaseY" class="text-gray-600">Phase Encoding (Y-axis)</label>
-                <input type="range" id="phaseY" min="-100" max="100" value="0" step=".1">
-                <div class="flex gap-2 mt-2">
-                    <button id="stepBackwardY" class="flex-1 px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm">← Step Back</button>
-                    <button id="stepForwardY" class="flex-1 px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm">Step Forward →</button>
+                <label for="phaseY" class="text-gray-600 font-medium">Phase Encoding (Y-axis)</label>
+                <!-- Desktop layout: slider above, buttons below -->
+                <input type="range" id="phaseY" min="-100" max="100" value="0" step=".1" class="desktop-slider">
+                <div class="flex gap-2 mt-2 desktop-buttons">
+                    <button id="stepBackwardY" class="flex-1 px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium">←</button>
+                    <button id="stepForwardY" class="flex-1 px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium">→</button>
+                </div>
+                <!-- Mobile layout: buttons at slider ends -->
+                <div class="items-center gap-2 mobile-inline-controls">
+                    <button id="stepBackwardYMobileInline" class="px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm font-medium">←</button>
+                    <input type="range" id="phaseYMobileInline" min="-100" max="100" value="0" step=".1" class="flex-1">
+                    <button id="stepForwardYMobileInline" class="px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm font-medium">→</button>
                 </div>
             </div>
             <div class="flex flex-col gap-2">
-                <label for="phaseVis" class="text-gray-600">Phase Colour Opacity</label>
+                <label for="phaseVis" class="text-gray-600 font-medium">Opacity</label>
                 <input type="range" id="phaseVis" min="0" max="100" value="100">
             </div>
             <div class="flex flex-col gap-2">
-                <label for="gridSize" class="text-gray-600">Grid Size</label>
+                <label for="gridSize" class="text-gray-600 font-medium">Grid Size</label>
                 <input type="range" id="gridSize" min="5" max="35" value="25" step="1">
                 <!-- <span id="gridSizeValue" class="text-sm text-gray-500">25x25 Grid</span> -->
             </div>
-            <!-- <div class="flex flex-col gap-2">
-                <label for="displayRange" class="text-gray-600">Extra Spins Outside ±2</label>
-                <input type="range" id="displayRange" min="0" max="10" value="0" step="1">
-                <span id="displayRangeValue" class="text-sm text-gray-500">0 spins</span>
-            </div> -->
-            <button id="resetButton" class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 transition-colors">Reset</button>
+            <div class="flex flex-col gap-2">
+                <label class="text-gray-600 font-medium opacity-0">Reset</label> <!-- Invisible label for alignment -->
+                <button id="resetButton" class="px-4 py-3 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 transition-colors font-medium">Reset</button>
+            </div>
         </div>
         
         <!-- Canvas for the Simulation -->
@@ -101,18 +366,104 @@
         document.addEventListener('DOMContentLoaded', () => {
             const canvas = document.getElementById('mriCanvas');
             const ctx = canvas.getContext('2d');
+            
+            // Desktop controls
             const phaseXSlider = document.getElementById('phaseX');
             const phaseYSlider = document.getElementById('phaseY');
             const phaseVisSlider = document.getElementById('phaseVis');
             const gridSizeSlider = document.getElementById('gridSize');
-            // const displayRangeSlider = document.getElementById('displayRange');
-            // const displayRangeValueSpan = document.getElementById('displayRangeValue');
-            // const gridSizeValueSpan = document.getElementById('gridSizeValue');
             const resetButton = document.getElementById('resetButton');
             const stepBackwardButton = document.getElementById('stepBackward');
             const stepForwardButton = document.getElementById('stepForward');
             const stepBackwardYButton = document.getElementById('stepBackwardY');
             const stepForwardYButton = document.getElementById('stepForwardY');
+            
+            // Mobile inline controls
+            const phaseXMobileInlineSlider = document.getElementById('phaseXMobileInline');
+            const phaseYMobileInlineSlider = document.getElementById('phaseYMobileInline');
+            const stepBackwardMobileInlineButton = document.getElementById('stepBackwardMobileInline');
+            const stepForwardMobileInlineButton = document.getElementById('stepForwardMobileInline');
+            const stepBackwardYMobileInlineButton = document.getElementById('stepBackwardYMobileInline');
+            const stepForwardYMobileInlineButton = document.getElementById('stepForwardYMobileInline');
+            
+            // Mobile controls (only used for overlay mode, now disabled on mobile)
+            const controlsToggle = document.getElementById('controlsToggle');
+            const controlPanelMobile = document.getElementById('controlPanelMobile');
+            const phaseXMobileSlider = document.getElementById('phaseXMobile');
+            const phaseYMobileSlider = document.getElementById('phaseYMobile');
+            const phaseVisMobileSlider = document.getElementById('phaseVisMobile');
+            const gridSizeMobileSlider = document.getElementById('gridSizeMobile');
+            const resetButtonMobile = document.getElementById('resetButtonMobile');
+            const stepBackwardMobileButton = document.getElementById('stepBackwardMobile');
+            const stepForwardMobileButton = document.getElementById('stepForwardMobile');
+            const stepBackwardYMobileButton = document.getElementById('stepBackwardYMobile');
+            const stepForwardYMobileButton = document.getElementById('stepForwardYMobile');
+
+            // Mobile controls toggle functionality (now disabled since controls are always visible)
+            if (controlsToggle) {
+                controlsToggle.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (controlPanelMobile) {
+                        controlPanelMobile.classList.add('show');
+                    }
+                });
+            }
+            
+            // Close mobile controls when clicking overlay
+            if (controlPanelMobile) {
+                controlPanelMobile.addEventListener('click', (e) => {
+                    if (e.target === controlPanelMobile) {
+                        controlPanelMobile.classList.remove('show');
+                    }
+                });
+                
+                // Add close button functionality
+                const closeButton = controlPanelMobile.querySelector('button[onclick]');
+                if (closeButton) {
+                    closeButton.removeAttribute('onclick');
+                    closeButton.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        controlPanelMobile.classList.remove('show');
+                    });
+                }
+            }
+            
+            // Sync desktop and mobile controls (simplified since mobile uses desktop controls)
+            function syncControls(source, target, value) {
+                if (target && source !== target) {
+                    target.value = value;
+                }
+            }
+            
+            // Setup slider event listeners for desktop controls (which are now used on mobile too)
+            phaseXSlider.addEventListener('input', () => { 
+                // Sync mobile inline slider
+                if (phaseXMobileInlineSlider) phaseXMobileInlineSlider.value = phaseXSlider.value;
+                draw(); 
+            });
+            phaseYSlider.addEventListener('input', () => { 
+                // Sync mobile inline slider
+                if (phaseYMobileInlineSlider) phaseYMobileInlineSlider.value = phaseYSlider.value;
+                draw(); 
+            });
+            phaseVisSlider.addEventListener('input', () => { draw(); });
+            
+            // Setup mobile inline slider event listeners
+            if (phaseXMobileInlineSlider) {
+                phaseXMobileInlineSlider.addEventListener('input', () => {
+                    // Sync desktop slider
+                    phaseXSlider.value = phaseXMobileInlineSlider.value;
+                    draw();
+                });
+            }
+            if (phaseYMobileInlineSlider) {
+                phaseYMobileInlineSlider.addEventListener('input', () => {
+                    // Sync desktop slider
+                    phaseYSlider.value = phaseYMobileInlineSlider.value;
+                    draw();
+                });
+            }
 
             // Constants for the simulation
             let gridSize = 25;
@@ -358,7 +709,6 @@
              */
             function resetSimulation() {
                 gridSizeSlider.value = 25;
-                // displayRangeSlider.value = 0;
                 
                 // Update grid size and recalculate arrow/circle scales
                 let rawGridSize = parseInt(gridSizeSlider.value);
@@ -370,6 +720,11 @@
                 phaseXSlider.value = 0;
                 phaseYSlider.value = 0;
                 phaseVisSlider.value = 100;
+                
+                // Sync mobile inline sliders
+                if (phaseXMobileInlineSlider) phaseXMobileInlineSlider.value = 0;
+                if (phaseYMobileInlineSlider) phaseYMobileInlineSlider.value = 0;
+                
                 generateInitialSpins(); // Regenerate spins with new range
                 draw();
             }
@@ -390,17 +745,38 @@
                 const newMin = -newRange;
                 const newMax = newRange;
                 
-                // Update slider attributes
-                phaseXSlider.min = newMin;
-                phaseXSlider.max = newMax;
-                phaseYSlider.min = newMin;
-                phaseYSlider.max = newMax;
+                // Update slider attributes for desktop controls
+                if (phaseXSlider) {
+                    phaseXSlider.min = newMin;
+                    phaseXSlider.max = newMax;
+                }
+                if (phaseYSlider) {
+                    phaseYSlider.min = newMin;
+                    phaseYSlider.max = newMax;
+                }
+                
+                // Update slider attributes for mobile inline controls
+                if (phaseXMobileInlineSlider) {
+                    phaseXMobileInlineSlider.min = newMin;
+                    phaseXMobileInlineSlider.max = newMax;
+                }
+                if (phaseYMobileInlineSlider) {
+                    phaseYMobileInlineSlider.min = newMin;
+                    phaseYMobileInlineSlider.max = newMax;
+                }
                 
                 // Clamp current values to new range
-                const currentX = parseInt(phaseXSlider.value);
-                const currentY = parseInt(phaseYSlider.value);
-                phaseXSlider.value = Math.min(newMax, Math.max(newMin, currentX));
-                phaseYSlider.value = Math.min(newMax, Math.max(newMin, currentY));
+                const currentX = parseFloat(phaseXSlider.value);
+                const currentY = parseFloat(phaseYSlider.value);
+                const clampedX = Math.min(newMax, Math.max(newMin, currentX));
+                const clampedY = Math.min(newMax, Math.max(newMin, currentY));
+                
+                phaseXSlider.value = clampedX;
+                phaseYSlider.value = clampedY;
+                
+                // Sync mobile inline sliders
+                if (phaseXMobileInlineSlider) phaseXMobileInlineSlider.value = clampedX;
+                if (phaseYMobileInlineSlider) phaseYMobileInlineSlider.value = clampedY;
             }
 
             /**
@@ -446,7 +822,7 @@
                     
                     const currentAnimatedValue = animationStartValue + (animationTargetValue - animationStartValue) * eased;
                     
-                    // Update the visual slider position
+                    // Update slider position
                     phaseXSlider.value = currentAnimatedValue;
                     
                     // Draw with the animated value
@@ -487,7 +863,7 @@
                     
                     const currentAnimatedValue = animationStartValueY + (animationTargetValueY - animationStartValueY) * eased;
                     
-                    // Update the visual slider position
+                    // Update slider position
                     phaseYSlider.value = currentAnimatedValue;
                     
                     // Draw with the animated value
@@ -509,7 +885,7 @@
             /**
              * Handles window resizing to make the canvas responsive.
              */
-    function resizeCanvas() {
+            function resizeCanvas() {
                 const sidebarWidth = 256; // Fixed width of the control panel
                 const availableWidth = window.innerWidth;
                 const availableHeight = window.innerHeight;
@@ -520,11 +896,17 @@
                     // On desktop, take up to 90% of the remaining space, up to 1000px max
                     size = Math.min((availableWidth - sidebarWidth) * 0.9, availableHeight * 0.9, 1000);
                 } else {
-                    // On mobile, take up to 90% of the screen width
-                    size = Math.min(availableWidth * 0.9, availableHeight * 0.7);
+                    // On mobile, ensure we maintain square aspect ratio
+                    // Use the smaller of width or available height to ensure it fits
+                    const maxWidth = availableWidth * 0.95;
+                    const maxHeight = availableHeight * 0.8; // Leave more room for controls on mobile
+                    size = Math.min(maxWidth, maxHeight, 500); // Increased cap to 500px for better mobile experience
                 }
 
-                // Make canvas a perfect square
+                // Ensure minimum size for usability
+                size = Math.max(size, 200);
+
+                // Make canvas a perfect square - this is crucial!
                 canvas.width = size;
                 canvas.height = size;
 
@@ -547,21 +929,10 @@
                 generateInitialSpins();
                 draw();
             });
-            // displayRangeSlider.addEventListener('input', () => {
-            //     const extraSpins = parseInt(displayRangeSlider.value);
-            //     const spinsText = extraSpins === 1 ? '1 spin' : `${extraSpins} spins`;
-            //     displayRangeValueSpan.textContent = spinsText;
-            //     generateInitialSpins();
-            //     draw();
-            // });
-            phaseXSlider.addEventListener('input', () => {
-                draw();
-            });
-            phaseYSlider.addEventListener('input', draw);
-            phaseVisSlider.addEventListener('input', draw);
+            
             resetButton.addEventListener('click', resetSimulation);
             
-            // Step animation event listeners
+            // Step animation event listeners for desktop (now used on all devices)
             stepForwardButton.addEventListener('click', () => {
                 const currentValue = parseFloat(phaseXSlider.value);
                 const targetValue = getNextStepValue(currentValue, 1);
@@ -574,7 +945,6 @@
                 animateToValue(targetValue);
             });
 
-            // Step animation event listeners for Y slider
             stepForwardYButton.addEventListener('click', () => {
                 const currentValue = parseFloat(phaseYSlider.value);
                 const targetValue = getNextStepValue(currentValue, 1);
@@ -586,6 +956,39 @@
                 const targetValue = getNextStepValue(currentValue, -1);
                 animateToValueY(targetValue);
             });
+            
+            // Mobile inline button event listeners
+            if (stepForwardMobileInlineButton) {
+                stepForwardMobileInlineButton.addEventListener('click', () => {
+                    const currentValue = parseFloat(phaseXSlider.value);
+                    const targetValue = getNextStepValue(currentValue, 1);
+                    animateToValue(targetValue);
+                });
+            }
+            
+            if (stepBackwardMobileInlineButton) {
+                stepBackwardMobileInlineButton.addEventListener('click', () => {
+                    const currentValue = parseFloat(phaseXSlider.value);
+                    const targetValue = getNextStepValue(currentValue, -1);
+                    animateToValue(targetValue);
+                });
+            }
+            
+            if (stepForwardYMobileInlineButton) {
+                stepForwardYMobileInlineButton.addEventListener('click', () => {
+                    const currentValue = parseFloat(phaseYSlider.value);
+                    const targetValue = getNextStepValue(currentValue, 1);
+                    animateToValueY(targetValue);
+                });
+            }
+            
+            if (stepBackwardYMobileInlineButton) {
+                stepBackwardYMobileInlineButton.addEventListener('click', () => {
+                    const currentValue = parseFloat(phaseYSlider.value);
+                    const targetValue = getNextStepValue(currentValue, -1);
+                    animateToValueY(targetValue);
+                });
+            }
             
             window.addEventListener('resize', resizeCanvas);
 
