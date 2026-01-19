@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive SVG Dog Profile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        input[type=range] { accent-color: #4f46e5; }
+        .canvas-container {
+            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .color-dot { cursor: pointer; transition: transform 0.2s; }
+        .color-dot:hover { transform: scale(1.1); }
+        .color-dot.active { border: 2px solid white; outline: 2px solid #4f46e5; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col items-center p-4 md:p-8">
+
+    <div class="max-w-4xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="p-6 bg-indigo-600 text-white text-center">
+            <h1 class="text-2xl font-bold">Advanced Dog Architect</h1>
+            <p class="text-indigo-100 opacity-90 text-sm">Refined geometry with mouth, color selection, and constraints</p>
+        </div>
+
+        <div class="flex flex-col md:flex-row p-6 gap-8">
+            <div class="flex-[2] canvas-container bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center min-h-[400px]">
+                <svg id="dogSvg" viewBox="0 0 400 300" class="w-full h-full drop-shadow-lg">
+                    <path id="tailPath" fill="none" stroke="#4b3621" stroke-width="8" stroke-linecap="round" />
+                    <path id="dogPath" fill="#4b3621" stroke="#2c1e12" stroke-width="2" stroke-linejoin="round" />
+                    <!-- Mouth Path -->
+                    <path id="mouthPath" fill="none" stroke="black" stroke-width="1.5" stroke-linecap="round" opacity="0.4" />
+                    <circle id="dogEye" r="2.5" fill="white" />
+                </svg>
+            </div>
+
+            <div class="flex-1 space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                <section>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase mb-3">Coat Color</h3>
+                    <div id="colorPicker" class="flex gap-2 mb-4">
+                        <div class="color-dot active w-8 h-8 rounded-full shadow-inner" style="background: #4b3621" data-color="#4b3621" data-stroke="#2c1e12"></div>
+                        <div class="color-dot w-8 h-8 rounded-full shadow-inner" style="background: #c19a6b" data-color="#c19a6b" data-stroke="#8a6d48"></div>
+                        <div class="color-dot w-8 h-8 rounded-full shadow-inner" style="background: #222222" data-color="#222222" data-stroke="#000000"></div>
+                        <div class="color-dot w-8 h-8 rounded-full shadow-inner" style="background: #e3dac9" data-color="#e3dac9" data-stroke="#b8af9d"></div>
+                        <div class="color-dot w-8 h-8 rounded-full shadow-inner" style="background: #8b4513" data-color="#8b4513" data-stroke="#5d2e0d"></div>
+                    </div>
+                </section>
+
+                <section>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase mb-3">Head & Face</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <div class="flex justify-between mb-1 text-xs font-medium text-slate-700">
+                                <label>Snout Length</label>
+                                <span id="snoutVal" class="text-indigo-600 font-bold"></span>
+                            </div>
+                            <input type="range" id="snout" min="30" max="80" value="50" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div>
+                            <div class="flex justify-between mb-1 text-xs font-medium text-slate-700">
+                                <label>Muzzle Depth</label>
+                                <span id="depthVal" class="text-indigo-600 font-bold"></span>
+                            </div>
+                            <input type="range" id="depth" min="20" max="50" value="35" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div>
+                            <div class="flex justify-between mb-1 text-xs font-medium text-slate-700">
+                                <label>Forehead "Stop"</label>
+                                <span id="stopVal" class="text-indigo-600 font-bold"></span>
+                            </div>
+                            <input type="range" id="stop" min="0" max="25" value="15" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div>
+                            <div class="flex justify-between mb-1 text-xs font-medium text-slate-700">
+                                <label>Ear Height</label>
+                                <span id="earVal" class="text-indigo-600 font-bold"></span>
+                            </div>
+                            <input type="range" id="ear" min="10" max="80" value="35" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    </div>
+                </section>
+
+                <section class="pt-2 border-t border-slate-100">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase mb-3">Body</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <div class="flex justify-between mb-1 text-xs font-medium text-slate-700">
+                                <label>Body Length</label>
+                                <span id="bodyVal" class="text-indigo-600 font-bold"></span>
+                            </div>
+                            <input type="range" id="body" min="80" max="200" value="120" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div>
+                            <div class="flex justify-between mb-1 text-xs font-medium text-slate-700">
+                                <label>Leg Length</label>
+                                <span id="legVal" class="text-indigo-600 font-bold"></span>
+                            </div>
+                            <input type="range" id="leg" min="10" max="60" value="35" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div>
+                            <div class="flex justify-between mb-1 text-xs font-medium text-slate-700">
+                                <label>Tail Wag</label>
+                                <span id="tailVal" class="text-indigo-600 font-bold"></span>
+                            </div>
+                            <input type="range" id="tail" min="-40" max="40" value="10" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    </div>
+                </section>
+                
+                <div class="pt-4 flex gap-2">
+                    <button onclick="randomize()" class="flex-1 py-2 px-4 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition font-medium text-xs">Randomize</button>
+                    <button onclick="resetInputs()" class="flex-1 py-2 px-4 border border-slate-300 rounded-lg hover:bg-slate-50 transition font-medium text-xs">Reset</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const inputs = ['ear', 'snout', 'leg', 'body', 'tail', 'depth', 'stop'];
+        const elements = {};
+        inputs.forEach(id => elements[id] = document.getElementById(id));
+        
+        const pathElem = document.getElementById('dogPath');
+        const tailPath = document.getElementById('tailPath');
+        const mouthPath = document.getElementById('mouthPath');
+        const eyeElem = document.getElementById('dogEye');
+        let currentColor = "#4b3621";
+        let currentStroke = "#2c1e12";
+
+        document.querySelectorAll('.color-dot').forEach(dot => {
+            dot.addEventListener('click', () => {
+                document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+                dot.classList.add('active');
+                currentColor = dot.dataset.color;
+                currentStroke = dot.dataset.stroke;
+                draw();
+            });
+        });
+
+        function draw() {
+            const ear = parseInt(elements.ear.value);
+            const snoutLen = parseInt(elements.snout.value);
+            const depth = parseInt(elements.depth.value);
+            const stop = parseInt(elements.stop.value);
+            const legH = parseInt(elements.leg.value);
+            const bodyL = parseInt(elements.body.value);
+            const tailW = parseInt(elements.tail.value);
+            
+            inputs.forEach(id => document.getElementById(id + 'Val').innerText = elements[id].value);
+
+            const startX = 50;
+            const groundY = 250;
+            const bellyY = groundY - legH;
+            const backY = bellyY - 45;
+            const rearX = startX + bodyL;
+
+            pathElem.setAttribute('fill', currentColor);
+            pathElem.setAttribute('stroke', currentStroke);
+            tailPath.setAttribute('stroke', currentColor);
+
+            const tailX = startX + 5;
+            const tailY = backY + 5;
+            tailPath.setAttribute('d', `M ${tailX} ${tailY} Q ${tailX - 20} ${tailY - 20 + tailW}, ${tailX - 30} ${tailY - 10 + tailW}`);
+
+            const neckTopX = rearX + 25;
+            const neckTopY = backY - 35;
+            const browX = neckTopX + 20;
+            const browY = neckTopY - 15;
+            const bridgeX = browX + 10;
+            const bridgeY = browY + stop; 
+            const snoutTipX = bridgeX + snoutLen;
+            const snoutTipY = bridgeY + 5; 
+            const jawBottomY = snoutTipY + depth;
+
+            const d = `
+                M ${startX} ${backY}
+                C ${startX + 30} ${backY - 10}, ${rearX - 30} ${backY - 10}, ${rearX} ${backY} 
+                L ${neckTopX} ${neckTopY} 
+                L ${neckTopX + 15} ${ear} 
+                C ${neckTopX + 25} ${ear - 5}, ${neckTopX + 35} ${neckTopY - 25}, ${browX} ${browY} 
+                L ${bridgeX} ${bridgeY}
+                L ${snoutTipX} ${snoutTipY}
+                C ${snoutTipX + 5} ${snoutTipY + 5}, ${snoutTipX + 5} ${jawBottomY - 5}, ${snoutTipX} ${jawBottomY}
+                L ${rearX + 70} ${jawBottomY + 5}
+                L ${rearX + 75} ${bellyY}
+                L ${rearX + 65} ${bellyY} 
+                L ${rearX + 65} ${groundY} 
+                L ${rearX + 55} ${groundY} 
+                L ${rearX + 55} ${bellyY} 
+                L ${rearX + 25} ${bellyY} 
+                L ${rearX + 25} ${groundY} 
+                L ${rearX + 15} ${groundY} 
+                L ${rearX + 15} ${bellyY} 
+                L ${startX + 35} ${bellyY}
+                L ${startX + 35} ${groundY}
+                L ${startX + 25} ${groundY}
+                L ${startX + 25} ${bellyY}
+                L ${startX + 10} ${bellyY}
+                L ${startX + 10} ${groundY}
+                L ${startX} ${groundY}
+                L ${startX} ${backY}
+                Z
+            `.replace(/\s+/g, ' ').trim();
+
+            pathElem.setAttribute('d', d);
+
+            // Mouth line calculation: starts below snout tip and curves back
+            const mouthStartX = snoutTipX - 2;
+            const mouthStartY = snoutTipY + (depth * 0.4);
+            const mouthEndX = bridgeX + (snoutLen * 0.3);
+            const mouthEndY = mouthStartY + 2;
+            mouthPath.setAttribute('d', `M ${mouthStartX} ${mouthStartY} Q ${mouthStartX - 5} ${mouthStartY + 2}, ${mouthEndX} ${mouthEndY}`);
+
+            const eyeX = browX + 5;
+            const eyeY = browY + 8 + (stop * 0.2);
+            eyeElem.setAttribute('cx', eyeX);
+            eyeElem.setAttribute('cy', eyeY);
+        }
+
+        function randomize() {
+            Object.values(elements).forEach(el => {
+                const min = parseInt(el.min);
+                const max = parseInt(el.max);
+                el.value = Math.floor(Math.random() * (max - min + 1) + min);
+            });
+            draw();
+        }
+
+        function resetInputs() {
+            elements.ear.value = 35;
+            elements.snout.value = 50;
+            elements.depth.value = 35;
+            elements.stop.value = 15;
+            elements.leg.value = 35;
+            elements.body.value = 120;
+            elements.tail.value = 10;
+            draw();
+        }
+
+        Object.values(elements).forEach(el => el.addEventListener('input', draw));
+        draw();
+    </script>
+</body>
+</html>
