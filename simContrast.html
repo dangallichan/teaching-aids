@@ -146,9 +146,35 @@
     .grid { grid-template-columns: minmax(0, 1fr); }
     .controls { grid-template-columns: minmax(0, 1fr); }
   }
+  /* ---- phone: first screen = title, 3 sliders, image, T1/T2 weighting bars; everything else below ---- */
   @media (max-width: 560px) {
-    .left { grid-template-columns: minmax(0, 1fr); grid-template-areas: none; }
-    .left > .card { grid-area: auto; }
+    .wrap { max-width: none; padding: 10px 12px 24px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; }
+    .top, .top header, .controls, .grid, .left, .right { display: contents; }
+    .wrap h1, .wrap header p, .legend, .ctl, .opts, .wrap .card, footer.note { flex: 0 0 100%; min-width: 0; }
+    header h1 { order: 1; font-size: 1.25em; margin: 0; line-height: 1.2; }
+    .ctl { order: 2; gap: 2px 8px; grid-template-columns: 4.6em minmax(0, 1fr) auto; }
+    .ctl label { min-width: 0; font-size: .92em; }
+    input[type=number] { width: 4.2em; padding: 2px 5px; }
+    .ctl .unit { display: inline-block; width: 1.9em; }
+    .right > .card { order: 3; padding: 8px 10px; height: max(220px, calc(100vh - 183px - 25vh));
+                     height: max(220px, calc(100svh - 183px - 25svh)); }
+    .wrap .a-t1, .wrap .a-t2 { order: 4; flex: 1 1 calc(50% - 4px); padding: 8px 6px 6px; height: max(160px, 25vh); height: max(160px, 25svh); }
+    .wrap .a-t1w, .wrap .a-t2w { order: 8; flex: 1 1 calc(50% - 4px); padding: 8px 6px 6px; height: 230px; }
+    .a-t1 h2, .a-t2 h2, .a-t1w h2, .a-t2w h2 { font-size: .85em; margin: 0 0 2px 4px; }
+    .a-t1 h2 .par, .a-t2 h2 .par { display: none; }
+    .a-t1 h2::after, .a-t2 h2::after { content: ' (ms)'; color: var(--ink-3); }
+    .a-t1 .chart, .a-t2 .chart, .a-t1w .chart, .a-t2w .chart { height: auto; flex: 1 1 0; min-height: 0; }
+    .imgstats { font-size: .85em; margin-bottom: 4px; line-height: 1.35; }
+    .canvaswrap { flex: 1 1 0; min-height: 0; }
+    .canvaswrap canvas { height: 100%; object-fit: contain; }
+    /* below the first screen */
+    .opts { order: 5; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+    header p { order: 6; margin: 0; }
+    .legend { order: 7; }
+    .a-comb { order: 10; } .a-seg { order: 11; }
+    .chart { height: 260px; }
+    footer.note { order: 12; margin-top: 6px; }
+    details.vals .pop { right: auto; left: 0; }
   }
 
   /* ---- widescreen: one full-window dashboard, no page scroll ---- */
@@ -390,13 +416,13 @@ function axes(F, xd, yd, opts) {
   const X = x => m.l + (x - xd[0]) / (xd[1] - xd[0]) * pw;
   const Y = y => m.t + ph - (y - yd[0]) / (yd[1] - yd[0]) * ph;
   let s = '';
-  const yt = opts.yticks || niceTicks(yd[0], yd[1], 5);
+  const yt = opts.yticks || niceTicks(yd[0], yd[1], opts.ny || 5);
   yt.forEach(v => {
     s += `<line class="gridline" x1="${m.l}" x2="${m.l + pw}" y1="${Y(v)}" y2="${Y(v)}"/>`;
     s += `<text x="${m.l - 7}" y="${Y(v) + 4}" text-anchor="end">${+v.toFixed(3)}</text>`;
   });
   if (opts.xticks !== false) {
-    const xt = opts.xticks || niceTicks(xd[0], xd[1], 6);
+    const xt = opts.xticks || niceTicks(xd[0], xd[1], opts.nx || 6);
     xt.forEach(v => {
       s += `<line class="gridline" x1="${X(v)}" x2="${X(v)}" y1="${m.t}" y2="${m.t + ph}"/>`;
       s += `<line class="tick" x1="${X(v)}" x2="${X(v)}" y1="${m.t + ph}" y2="${m.t + ph + 4}"/>`;
@@ -412,9 +438,13 @@ function axes(F, xd, yd, opts) {
 
 // Line plot with hover read-out
 function linePlot(el, o) {
-  const F = frame(el, { l: 54, b: 42 });
+  let F = frame(el);
+  const compact = F.W < 300;                       // half-width chart on a phone
+  F = frame(el, compact ? { l: 30, r: 12, t: 6, b: 22 } : { l: 54, b: 42 });
   const { m, pw, ph } = F;
-  const A = axes(F, o.xd, o.yd, { xlabel: o.xlabel, ylabel: o.ylabel });
+  const A = axes(F, o.xd, o.yd, compact
+    ? { nx: 2, ny: 2 }                                   // no axis titles at this size; card title carries the unit
+    : { xlabel: o.xlabel, ylabel: o.ylabel });
   const id = el.id + 'clip';
   let s = A.s + `<clipPath id="${id}"><rect x="${m.l}" y="${m.t}" width="${pw}" height="${ph}"/></clipPath><g clip-path="url(#${id})">`;
   (o.vlines || []).forEach(v => {
@@ -510,8 +540,8 @@ function render() {
 
   // titles
   document.getElementById('t1title').innerHTML =
-    `<b>T1-weighting:</b> TR = ${num(s.TR)} ms, Flip angle = ${num(s.flip)}°` + (s.useInversion ? `, TI = ${num(s.TI)} ms` : '');
-  document.getElementById('t2title').innerHTML = `<b>T2-weighting:</b> TE = ${num(s.TE)} ms`;
+    `<b>T1-weighting</b><span class="par">: TR = ${num(s.TR)} ms, Flip angle = ${num(s.flip)}°` + (s.useInversion ? `, TI = ${num(s.TI)} ms` : '') + `</span>`;
+  document.getElementById('t2title').innerHTML = `<b>T2-weighting</b><span class="par">: TE = ${num(s.TE)} ms</span>`;
 
   // T1 recovery
   const allM = c.Mext.flat();
@@ -522,14 +552,14 @@ function render() {
   linePlot(document.getElementById('t1plot'), {
     x: c.tt, y: c.Mext, xd: [c.tt[0], c.tt[c.tt.length - 1]], yd: yd1,
     xlabel: s.useInversion ? 'Time since last inversion pulse (ms)' : 'Time since last excitation pulse (ms)',
-    ylabel: 'Relative Mz', vlines: vl,
+    ylabel: 'Relative Mz', xlabelS: 'Time (ms)', ylabelS: 'Mz', vlines: vl,
     tipLabel: 't', aria: 'Longitudinal magnetisation recovery for WM, GM and CSF',
   });
 
   // T2 decay
   linePlot(document.getElementById('t2plot'), {
     x: c.tE, y: c.M2, xd: [0, c.maxTE], yd: [0, 1.05],
-    xlabel: 'Time since excitation pulse (ms)', ylabel: 'Relative Mxy',
+    xlabel: 'Time since excitation pulse (ms)', ylabel: 'Relative Mxy', xlabelS: 'Time (ms)', ylabelS: 'Mxy',
     vlines: [{ x: s.TE, dash: '7 5', w: 2 }], tipLabel: 'TE', aria: 'Transverse magnetisation decay for WM, GM and CSF',
   });
 
