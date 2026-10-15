@@ -222,7 +222,7 @@
       <div class="ctl">
         <label for="TR">TR</label>
         <input type="range" id="TR" min="0" max="1000" step="1" aria-label="TR slider (logarithmic)">
-        <span class="numwrap"><input type="number" id="TRn" min="5" max="5000" step="1"><span class="unit">ms</span></span>
+        <span class="numwrap"><input type="number" id="TRn" min="5" max="8000" step="1"><span class="unit">ms</span></span>
       </div>
       <div class="ctl">
         <label for="flip">Flip angle</label>
@@ -584,8 +584,8 @@ function render() {
 
 // ---------- controls ----------
 const $ = id => document.getElementById(id);
-const trFromPos = p => Math.round(5 * Math.pow(10, 3 * p / 1000));     // 5 ms ... 5000 ms, logarithmic
-const posFromTr = tr => Math.round(1000 * Math.log10(tr / 5) / 3);
+const trFromPos = p => Math.round(5 * Math.pow(8000 / 5, p / 1000));    // 5 ms ... 8000 ms, logarithmic
+const posFromTr = tr => Math.round(1000 * Math.log(tr / 5) / Math.log(8000 / 5));
 
 function syncDerived() {
   // keep TE <= min(TR, 200) and TI < TR, as the MATLAB script enforces
@@ -604,14 +604,14 @@ function setVal(key, v, lo, hi) {
   state[key] = clamp(Math.round(v), lo, hi);
   syncDerived(); schedule();
 }
-$('TR').addEventListener('input', e => setVal('TR', trFromPos(+e.target.value), 5, 5000));
-$('TRn').addEventListener('input', e => { if (e.target.value !== '') setVal('TR', +e.target.value, 5, 5000); });
+$('TR').addEventListener('input', e => setVal('TR', trFromPos(+e.target.value), 5, 8000));
+$('TRn').addEventListener('input', e => { if (e.target.value !== '') setVal('TR', +e.target.value, 5, 8000); });
 $('flip').addEventListener('input', e => setVal('flip', +e.target.value, 1, 90));
 $('flipn').addEventListener('input', e => { if (e.target.value !== '') setVal('flip', +e.target.value, 1, 90); });
 $('TE').addEventListener('input', e => setVal('TE', +e.target.value, 1, 200));
 $('TEn').addEventListener('input', e => { if (e.target.value !== '') setVal('TE', +e.target.value, 1, 200); });
-$('TI').addEventListener('input', e => setVal('TI', +e.target.value, 1, 4999));
-$('TIn').addEventListener('input', e => { if (e.target.value !== '') setVal('TI', +e.target.value, 1, 4999); });
+$('TI').addEventListener('input', e => setVal('TI', +e.target.value, 1, 7999));
+$('TIn').addEventListener('input', e => { if (e.target.value !== '') setVal('TI', +e.target.value, 1, 7999); });
 ['TRn', 'flipn', 'TEn', 'TIn'].forEach(id => $(id).addEventListener('blur', syncDerived));
 $('field').addEventListener('change', e => { state.field = +e.target.value; schedule(); });
 $('useInv').addEventListener('change', e => { state.useInversion = e.target.checked; $('tiBox').classList.toggle('on', e.target.checked); schedule(); });
