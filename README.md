@@ -6,3 +6,8 @@ Feel free to use these for your own purposes - and to remix as you see fit! Cred
 https://dangallichan.github.io/teaching-aids/phaseEncoding.html)
 
 [https://dangallichan.github.io/teaching-aids/fft_visualisation/index.html](https://dangallichan.github.io/teaching-aids/fft_visualisation/index.html)
+
+[https://dangallichan.github.io/teaching-aids/simContrast.html](
+https://dangallichan.github.io/teaching-aids/simContrast.html)
+
+
