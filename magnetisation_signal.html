@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<!-- code generated for D. Gallichan by Claude, date: 16/10/26 -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Magnetisation and signal</title>
+<style>
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 16px;
+    background: #fff;
+    color: #222;
+  }
+  #app { max-width: 920px; margin: 0 auto; }
+  #title { text-align: center; font-size: 15px; margin: 4px 0 8px; line-height: 1.5; }
+  canvas { width: 100%; display: block; }
+  .controls { margin-top: 12px; display: grid; gap: 10px; }
+  .row { display: grid; grid-template-columns: 110px 1fr 70px; align-items: center; gap: 10px; }
+  .row label { font-size: 14px; }
+  .row output { font-variant-numeric: tabular-nums; font-size: 14px; text-align: right; }
+  input[type=range] { width: 100%; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="title"></div>
+  <canvas id="plot"></canvas>
+  <div class="controls">
+    <div class="row"><label for="T1">T1 (s)</label>
+      <input type="range" id="T1" min="0.1" max="5" step="0.05" value="0.9"><output id="T1o"></output></div>
+    <div class="row"><label for="TRexp">TR (s), log scale</label>
+      <input type="range" id="TRexp" min="-6" max="2.2" step="0.02" value="-1"><output id="TRo"></output></div>
+    <div class="row"><label for="flip">Flip angle (&deg;)</label>
+      <input type="range" id="flip" min="1" max="90" step="1" value="90"><output id="flipo"></output></div>
+    <div class="row"><label for="tMax">tMax (s)</label>
+      <input type="range" id="tMax" min="1" max="15" step="0.5" value="10"><output id="tMaxo"></output></div>
+  </div>
+</div>
+
+<script>
+// code generated for D. Gallichan by Claude, date: 16/10/26
+
+const N = 5000;
+
+// Equivalent of Python's f"{x:g}" / f"{x:.3g}": significant figures, trailing zeros dropped
+function fmtG(x, sig) {
+  if (!isFinite(x)) return "nan";
+  return String(Number(x.toPrecision(sig)));
+}
+
+function simulate(T1, TR, flipDeg, tMax) {
+  const dt = tMax / (N - 1);
+  const cosFlip = Math.cos(flipDeg * Math.PI / 180);
+  const sinFlip = Math.sin(flipDeg * Math.PI / 180);
+
+  // Indices of samples nearest each RF pulse time (TR, 2TR, ... < tMax)
+  const isFlip = new Uint8Array(N);
+  const iFlips = [];
+  for (let k = 1; k * TR < tMax; k++) {
+    const i = Math.round(k * TR / dt);
+    if (i > 0 && i < N) { isFlip[i] = 1; iFlips.push(i); }
+  }
+
+  const M = new Float64Array(N);
+  M[0] = 1;
+  for (let i = 1; i < N; i++) {
+    M[i] = M[i - 1] + ((1 - M[i - 1]) / T1) * dt;
+    if (isFlip[i]) M[i] *= cosFlip;
+  }
+
+  // Signal: magnetisation just before each flip, times sin(flip)
+  const signal = iFlips.map(i => M[i - 1] * sinFlip);
+  return { dt, M, iFlips, signal };
+}
+
+function niceStep(raw) {
+  const p = Math.pow(10, Math.floor(Math.log10(raw)));
+  const f = raw / p;
+  return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
+}
+function ticks(lo, hi, target) {
+  const step = niceStep((hi - lo) / target);
+  const out = [];
+  for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + 1e-9; v += step) {
+    out.push(Math.abs(v) < step * 1e-9 ? 0 : v);
+  }
+  return out;
+}
+
+const canvas = document.getElementById("plot");
+const ctx = canvas.getContext("2d");
+
+function draw() {
+  const T1 = parseFloat(document.getElementById("T1").value);
+  const TR = Math.pow(2, parseFloat(document.getElementById("TRexp").value));
+  const flip = parseFloat(document.getElementById("flip").value);
+  const tMax = parseFloat(document.getElementById("tMax").value);
+
+  document.getElementById("T1o").textContent = fmtG(T1, 3);
+  document.getElementById("TRo").textContent = fmtG(TR, 3);
+  document.getElementById("flipo").textContent = fmtG(flip, 3);
+  document.getElementById("tMaxo").textContent = fmtG(tMax, 3);
+
+  const { dt, M, iFlips, signal } = simulate(T1, TR, flip, tMax);
+
+  let Mmin = Infinity;
+  for (let i = 0; i < N; i++) if (M[i] < Mmin) Mmin = M[i];
+  const yMin = Math.min(Mmin, 0), yMax = 1.05;
+  const xMin = 0, xMax = 1.05 * tMax;
+
+  const last = signal.length ? signal[signal.length - 1] : NaN;
+  document.getElementById("title").innerHTML =
+    `<b>Tissue:</b> T1 = ${fmtG(T1, 6)}s &nbsp; ` +
+    `<b>Scan:</b> TR = ${fmtG(TR, 3)}s, Flip Angle = ${fmtG(flip, 6)}&deg; &nbsp; ` +
+    `<b>Resulting signal:</b> ${fmtG(last, 3)}`;
+
+  // HiDPI canvas sizing
+  const cssW = canvas.clientWidth || 800;
+  const cssH = Math.round(cssW * 0.5);
+  const dpr = window.devicePixelRatio || 1;
+  canvas.style.height = cssH + "px";
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+
+  const mL = 55, mR = 14, mT = 12, mB = 48;
+  const pw = cssW - mL - mR, ph = cssH - mT - mB;
+  const X = x => mL + (x - xMin) / (xMax - xMin) * pw;
+  const Y = y => mT + (1 - (y - yMin) / (yMax - yMin)) * ph;
+
+  // Grid + ticks
+  ctx.font = "13px system-ui, sans-serif";
+  ctx.fillStyle = "#222";
+  ctx.strokeStyle = "#ddd";
+  ctx.lineWidth = 1;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  for (const v of ticks(xMin, xMax, 8)) {
+    const px = Math.round(X(v)) + 0.5;
+    ctx.beginPath(); ctx.moveTo(px, mT); ctx.lineTo(px, mT + ph); ctx.stroke();
+    ctx.fillText(fmtG(v, 6), px, mT + ph + 6);
+  }
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (const v of ticks(yMin, yMax, 6)) {
+    const py = Math.round(Y(v)) + 0.5;
+    ctx.beginPath(); ctx.moveTo(mL, py); ctx.lineTo(mL + pw, py); ctx.stroke();
+    ctx.fillText(fmtG(v, 6), mL - 6, py);
+  }
+
+  // Clip data to the axes
+  ctx.save();
+  ctx.beginPath(); ctx.rect(mL, mT, pw, ph); ctx.clip();
+
+  // Signal bars (width limited so dense pulse trains don't fully overlap)
+  const spacingPx = iFlips.length > 1 ? (X(iFlips[1] * dt) - X(iFlips[0] * dt)) : 8;
+  ctx.strokeStyle = "#ff0000";
+  ctx.lineWidth = Math.max(1, Math.min(8, spacingPx * 0.8));
+  ctx.lineCap = "butt";
+  ctx.beginPath();
+  for (let k = 0; k < iFlips.length; k++) {
+    const px = X(iFlips[k] * dt);
+    ctx.moveTo(px, Y(0));
+    ctx.lineTo(px, Y(signal[k]));
+  }
+  ctx.stroke();
+
+  // Magnetisation curve
+  ctx.strokeStyle = "#1f77b4";
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  for (let i = 0; i < N; i++) {
+    const px = X(i * dt), py = Y(M[i]);
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  // Axes box
+  ctx.strokeStyle = "#222";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(mL + 0.5, mT + 0.5, pw, ph);
+
+  // Axis label
+  ctx.fillStyle = "#222";
+  ctx.font = "14px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillText("Time (s)", mL + pw / 2, cssH - 8);
+
+  // Legend (upper right)
+  ctx.font = "13px system-ui, sans-serif";
+  const items = [["Magnetisation", "#1f77b4", 2.5], ["Signal", "#ff0000", 8]];
+  const lw = 130, lh = 20 * items.length + 10;
+  const lx = mL + pw - lw - 8, ly = mT + 8;
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.strokeStyle = "#ccc";
+  ctx.fillRect(lx, ly, lw, lh);
+  ctx.strokeRect(lx + 0.5, ly + 0.5, lw, lh);
+  items.forEach(([name, col, w], k) => {
+    const cy = ly + 15 + k * 20;
+    ctx.strokeStyle = col; ctx.lineWidth = w;
+    ctx.beginPath(); ctx.moveTo(lx + 8, cy); ctx.lineTo(lx + 32, cy); ctx.stroke();
+    ctx.fillStyle = "#222";
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText(name, lx + 40, cy);
+  });
+}
+
+for (const id of ["T1", "TRexp", "flip", "tMax"]) {
+  document.getElementById(id).addEventListener("input", draw);
+}
+window.addEventListener("resize", draw);
+draw();
+</script>
+</body>
+</html>
