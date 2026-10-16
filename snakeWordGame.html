@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <!-- this game was created using a very short conversation with Google Gemini! -->
+  <!-- grid size and speed options added: code generated for D. Gallichan by Claude, date: 16/10/26 -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Snake Word Game</title>
@@ -28,6 +29,9 @@
                 align-items: flex-start;
             }
         }
+        input[type="range"] {
+            accent-color: #6366f1;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center p-4">
@@ -42,7 +46,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Controls and Words Panel -->
         <div class="w-full lg:w-96 flex-shrink-0 bg-gray-800 rounded-lg p-6 shadow-xl">
             <h1 class="text-3xl font-bold mb-4 text-center text-indigo-400">Snake Word Game</h1>
@@ -55,11 +59,36 @@
                     Enter Words (one per line):
                 </label>
                 <textarea id="wordInput" class="w-full p-2 h-32 rounded-md bg-gray-700 text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors" placeholder="e.g.,&#10;APPLE&#10;BANANA&#10;ORANGE">
-PYTHON
-JAVASCRIPT
-HTML
-CSS
+CAT
+DOG
+FISH
+FROG
+MOON
+CAKE
 </textarea>
+            </div>
+
+            <!-- Options -->
+            <div class="bg-gray-700 rounded-lg p-4 mb-6 space-y-4">
+                <h3 class="text-xl font-bold text-indigo-300">Options</h3>
+
+                <div>
+                    <label for="gridSizeInput" class="flex justify-between text-sm font-medium text-gray-300 mb-1">
+                        <span>Grid size</span>
+                        <span id="gridSizeValue" class="font-bold text-yellow-400">12 &times; 12</span>
+                    </label>
+                    <input type="range" id="gridSizeInput" min="10" max="40" step="1" value="12" class="w-full">
+                    <p class="text-xs text-gray-400 mt-1">Changing this restarts the game.</p>
+                </div>
+
+                <div>
+                    <label for="speedInput" class="flex justify-between text-sm font-medium text-gray-300 mb-1">
+                        <span>Speed</span>
+                        <span id="speedValue" class="font-bold text-yellow-400">3</span>
+                    </label>
+                    <input type="range" id="speedInput" min="1" max="10" step="1" value="3" class="w-full">
+                    <p class="text-xs text-gray-400 mt-1">1 = slow, 10 = fast. Takes effect immediately.</p>
+                </div>
             </div>
 
             <div class="flex flex-col space-y-4 mb-6">
@@ -80,6 +109,7 @@ CSS
     </div>
 
     <script>
+        // code generated for D. Gallichan by Claude, date: 16/10/26
         document.addEventListener('DOMContentLoaded', () => {
             // --- DOM and Game State Variables ---
             const canvas = document.getElementById('gameCanvas');
@@ -91,18 +121,28 @@ CSS
             const nextLetterDisplay = document.getElementById('nextLetterDisplay');
             const messageBox = document.getElementById('messageBox');
             const messageText = document.getElementById('messageText');
+            const gridSizeInput = document.getElementById('gridSizeInput');
+            const gridSizeValue = document.getElementById('gridSizeValue');
+            const speedInput = document.getElementById('speedInput');
+            const speedValue = document.getElementById('speedValue');
 
             const words = [];
             let currentWord = '';
             let wordIndex = 0;
             let score = 0;
             let gameOver = false;
-            let gameLoopInterval;
+            let waiting = false; // true while the board is set up and waiting for the first key press / tap
+            let gameLoopInterval = null;
 
-            const tileSize = 20;
+            // Speed level (1-10) -> milliseconds per game tick. Level 6 = 100 ms (the original speed); default is level 3.
+            const SPEED_DELAYS = [300, 250, 200, 160, 130, 100, 80, 65, 50, 35];
+            const getTickDelay = () => SPEED_DELAYS[parseInt(speedInput.value, 10) - 1];
+
+            let gridSize = parseInt(gridSizeInput.value, 10); // tiles per side
+            let tileSize = 20; // pixels per tile, recalculated from the canvas size and grid size
             let tileCountX, tileCountY;
             let snake = [];
-            let foods = []; // Now an array to hold all letters
+            let foods = []; // Array to hold all letters
             let direction = 'right';
             let nextDirection = 'right';
 
@@ -115,40 +155,70 @@ CSS
                 canvas.width = containerSize;
                 canvas.height = containerSize;
 
-                tileCountX = Math.floor(canvas.width / tileSize);
-                tileCountY = Math.floor(canvas.height / tileSize);
+                // Square grid whose tiles fill the canvas
+                gridSize = parseInt(gridSizeInput.value, 10);
+                tileCountX = gridSize;
+                tileCountY = gridSize;
+                tileSize = canvas.width / gridSize;
 
-                // Reset game state
-                snake = [{ x: 10, y: 10 }];
+                // Reset game state (snake starts in the middle of the grid)
+                snake = [{ x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) }];
                 score = 0;
                 wordIndex = 0;
                 gameOver = false;
+                waiting = false;
                 direction = 'right';
                 nextDirection = 'right';
                 messageBox.style.display = 'none';
-                
+                stopLoop();
+
                 loadWords();
                 if (words.length === 0) {
                     messageText.textContent = 'Please enter some words!';
                     messageBox.style.display = 'flex';
+                    stopLoop();
+                    draw();
                     return;
                 }
 
                 currentWord = words.shift();
-                placeWordLetters(); // Place all letters at once
+                if (!placeWordLetters()) { // Place all letters at once
+                    endGame('Word is too long for this grid size!');
+                    return;
+                }
                 updateDisplays();
-                
-                // Clear any existing game loop and start a new one
+                draw();
+
+                // Wait for the player before the snake starts moving
+                waiting = true;
+                messageText.textContent = 'Press any key to start';
+                messageBox.style.display = 'flex';
+            }
+
+            // Called on the first key press (or tap) after the board is set up
+            function beginPlay() {
+                if (!waiting) return;
+                waiting = false;
+                messageBox.style.display = 'none';
+                startLoop();
+            }
+
+            function startLoop() {
+                stopLoop();
+                gameLoopInterval = setInterval(gameLoop, getTickDelay());
+            }
+
+            function stopLoop() {
                 if (gameLoopInterval) {
                     clearInterval(gameLoopInterval);
+                    gameLoopInterval = null;
                 }
-                gameLoopInterval = setInterval(gameLoop, 100);
             }
 
             // The main game loop
             function gameLoop() {
                 if (gameOver) {
-                    clearInterval(gameLoopInterval);
+                    stopLoop();
                     return;
                 }
                 update();
@@ -159,7 +229,7 @@ CSS
             function update() {
                 // Update direction
                 direction = nextDirection;
-                
+
                 // Calculate new head position
                 const head = { x: snake[0].x, y: snake[0].y };
                 switch (direction) {
@@ -196,13 +266,16 @@ CSS
                         foods.splice(eatenFoodIndex, 1); // Remove the food
                         wordIndex++;
                         score += 10;
-                        
+
                         if (foods.length === 0) {
                             // Word is complete
                             if (words.length > 0) {
                                 currentWord = words.shift();
                                 wordIndex = 0;
-                                placeWordLetters(); // Place letters for the next word
+                                if (!placeWordLetters()) { // Place letters for the next word
+                                    endGame('Word is too long for this grid size!');
+                                    return;
+                                }
                             } else {
                                 endGame('Congratulations! You completed all the words!');
                             }
@@ -237,9 +310,9 @@ CSS
                 foods.forEach(food => {
                     ctx.fillStyle = '#ef4444'; // All letters are the same color now
                     ctx.fillRect(food.x * tileSize, food.y * tileSize, tileSize, tileSize);
-                    
+
                     ctx.fillStyle = 'white';
-                    ctx.font = `${tileSize - 4}px Inter`;
+                    ctx.font = `${Math.max(8, Math.round(tileSize * 0.7))}px Inter`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillText(food.letter.toUpperCase(), food.x * tileSize + tileSize / 2, food.y * tileSize + tileSize / 2);
@@ -259,9 +332,14 @@ CSS
                 });
             }
 
-            // Places all letters for the current word randomly on the board, away from the walls
+            // Places all letters for the current word randomly on the board, away from the walls.
+            // Returns false if the word can't fit on the current grid.
             function placeWordLetters() {
                 foods = [];
+                const interior = Math.max(0, tileCountX - 2) * Math.max(0, tileCountY - 2);
+                if (currentWord.length > interior - snake.length) {
+                    return false;
+                }
                 const occupiedPositions = new Set();
                 snake.forEach(segment => occupiedPositions.add(`${segment.x},${segment.y}`));
 
@@ -272,7 +350,7 @@ CSS
                         x = Math.floor(Math.random() * (tileCountX - 2)) + 1;
                         y = Math.floor(Math.random() * (tileCountY - 2)) + 1;
                     } while (occupiedPositions.has(`${x},${y}`));
-                    
+
                     occupiedPositions.add(`${x},${y}`);
                     foods.push({
                         x: x,
@@ -280,6 +358,7 @@ CSS
                         letter: currentWord[i]
                     });
                 }
+                return true;
             }
 
             // Updates the score and word displays
@@ -288,21 +367,40 @@ CSS
                 currentWordDisplay.textContent = currentWord;
                 nextLetterDisplay.textContent = currentWord[wordIndex] || '---';
             }
-            
+
             // Handles game over condition
             function endGame(message) {
                 gameOver = true;
                 messageText.textContent = message;
                 messageBox.style.display = 'flex';
                 startGameButton.textContent = 'Restart Game';
-                clearInterval(gameLoopInterval);
+                stopLoop();
             }
 
             // --- Event Listeners and Input Handling ---
 
             // Keyboard input for desktop
             window.addEventListener('keydown', e => {
+                // Don't start the game while typing words, or on bare modifier/Tab presses
+                if (e.target.tagName === 'TEXTAREA') return;
+                if (['Shift', 'Control', 'Alt', 'Meta', 'Tab', 'CapsLock'].includes(e.key)) return;
+                // Enter/Space on a focused button is handled by the button's own click
+                if (e.target.tagName === 'BUTTON' && (e.key === 'Enter' || e.key === ' ')) return;
+
                 const newDirection = e.key.toLowerCase();
+
+                if (waiting) {
+                    // First key press starts the game; a direction key also sets the initial direction
+                    const startDirs = { arrowup: 'up', w: 'up', arrowdown: 'down', s: 'down',
+                                        arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right' };
+                    if (startDirs[newDirection]) {
+                        direction = nextDirection = startDirs[newDirection];
+                        e.preventDefault();
+                    }
+                    beginPlay();
+                    return;
+                }
+
                 if (['arrowup', 'w'].includes(newDirection) && direction !== 'down') {
                     nextDirection = 'up';
                 } else if (['arrowdown', 's'].includes(newDirection) && direction !== 'up') {
@@ -331,6 +429,10 @@ CSS
                 const deltaX = touchEndX - touchStartX;
                 const deltaY = touchEndY - touchStartY;
 
+                if (waiting) {
+                    beginPlay(); // a tap or swipe starts the game
+                }
+
                 if (Math.abs(deltaX) > Math.abs(deltaY)) {
                     // Horizontal swipe
                     if (deltaX > 0 && direction !== 'left') {
@@ -348,10 +450,33 @@ CSS
                 }
             });
 
+            // Grid size slider: update label while dragging, restart the game when released
+            gridSizeInput.addEventListener('input', () => {
+                const g = gridSizeInput.value;
+                gridSizeValue.textContent = `${g} × ${g}`;
+            });
+            gridSizeInput.addEventListener('change', () => {
+                initGame();
+                startGameButton.textContent = 'Restart Game';
+                gridSizeInput.blur(); // stop arrow keys from moving the slider instead of the snake
+            });
+
+            // Speed slider: takes effect immediately without resetting the game
+            speedInput.addEventListener('input', () => {
+                speedValue.textContent = speedInput.value;
+                if (gameLoopInterval) {
+                    startLoop(); // restart the timer at the new rate (not while waiting to start)
+                }
+            });
+            speedInput.addEventListener('change', () => {
+                speedInput.blur(); // stop arrow keys from moving the slider instead of the snake
+            });
+
             // Start/Restart button click
             startGameButton.addEventListener('click', () => {
                 initGame();
                 startGameButton.textContent = 'Restart Game';
+                startGameButton.blur(); // so the next key press goes to the game, not the button
             });
 
             // Initial game setup
