@@ -570,9 +570,11 @@ function render() {
 
   // image + stats
   drawSim(c);
-  const mins = Math.round(192 * 128 * s.TR / 1000 / 6) / 10;
+  // 2D acquisition: 192 phase-encode lines x TR (ms) -> minutes; extra decimals below 1 min so short TRs don't show as 0
+  const rawMins = 192 * s.TR / 1000 / 60;
+  const mins = +rawMins.toFixed(rawMins < 1 ? 2 : 1);
   document.getElementById('imgstats').innerHTML =
-    `<div><b>Total acq. time:</b> ${mins} mins</div>` +
+    `<div><b>Total acq. time:</b> ${mins} mins <span style="color:var(--ink-3)">(Assuming 192xTR)</span></div>` +
     `<div><b>WM SNR:</b> ${fmt3(c.sigT1T2[0] * s.baseSNR)} &nbsp; <b>GM/WM CNR:</b> ${fmt3(Math.abs((c.sigT1T2[1] - c.sigT1T2[0]) * s.baseSNR))}</div>`;
 
   // table
