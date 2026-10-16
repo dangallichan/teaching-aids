@@ -5,9 +5,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Magnetisation and signal</title>
+<!-- Inter from Google Fonts; falls back to the system UI font if offline -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   body {
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     margin: 0;
     padding: 16px;
     background: #fff;
@@ -15,12 +19,45 @@
   }
   #app { max-width: 920px; margin: 0 auto; }
   #title { text-align: center; font-size: 15px; margin: 4px 0 8px; line-height: 1.5; }
+  #title .k { color: #7a7f87; font-weight: 500; }
+  #title b { font-weight: 600; }
   canvas { width: 100%; display: block; }
-  .controls { margin-top: 12px; display: grid; gap: 10px; }
-  .row { display: grid; grid-template-columns: 110px 1fr 70px; align-items: center; gap: 10px; }
-  .row label { font-size: 14px; }
-  .row output { font-variant-numeric: tabular-nums; font-size: 14px; text-align: right; }
-  input[type=range] { width: 100%; }
+  .controls {
+    margin-top: 14px; padding: 14px 22px 8px; background: #f8f8fa; border-radius: 10px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 28px;
+  }
+  @media (max-width: 760px) { .controls { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 420px) { .controls { grid-template-columns: 1fr; } }
+  .ctl .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .ctl label { font-size: 14px; font-weight: 700; color: #222; }
+  .ctl:focus-within label, .ctl:active label { color: #1a6fd1; }
+  .ctl output { font-size: 16px; color: #1a6fd1; font-variant-numeric: tabular-nums; }
+
+  /* Slider: thick rounded track, blue fill, round thumb with a halo while in use */
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 30px;
+    margin: 4px 0 0; background: transparent; cursor: pointer; --p: 50%;
+  }
+  input[type=range]:focus { outline: none; }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 8px; border-radius: 4px;
+    background: linear-gradient(to right, #1a73e8 var(--p), #d6e0f3 var(--p));
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 18px; height: 18px; margin-top: -5px;
+    border-radius: 50%; background: #1a73e8; border: 0; box-shadow: 0 0 0 0 rgba(26,115,232,0);
+    transition: box-shadow .12s;
+  }
+  input[type=range]:focus-visible::-webkit-slider-thumb,
+  input[type=range]:active::-webkit-slider-thumb { box-shadow: 0 0 0 6px rgba(26,115,232,0.22); }
+  input[type=range]::-moz-range-track { height: 8px; border-radius: 4px; background: #d6e0f3; }
+  input[type=range]::-moz-range-progress { height: 8px; border-radius: 4px; background: #1a73e8; }
+  input[type=range]::-moz-range-thumb {
+    width: 18px; height: 18px; border: 0; border-radius: 50%; background: #1a73e8;
+    box-shadow: 0 0 0 0 rgba(26,115,232,0); transition: box-shadow .12s;
+  }
+  input[type=range]:focus-visible::-moz-range-thumb,
+  input[type=range]:active::-moz-range-thumb { box-shadow: 0 0 0 6px rgba(26,115,232,0.22); }
 </style>
 </head>
 <body>
@@ -28,14 +65,14 @@
   <div id="title"></div>
   <canvas id="plot"></canvas>
   <div class="controls">
-    <div class="row"><label for="T1">T1 (s)</label>
-      <input type="range" id="T1" min="0.1" max="5" step="0.05" value="0.9"><output id="T1o"></output></div>
-    <div class="row"><label for="TRexp">TR (s), log scale</label>
-      <input type="range" id="TRexp" min="-6" max="2.2" step="0.02" value="-1"><output id="TRo"></output></div>
-    <div class="row"><label for="flip">Flip angle (&deg;)</label>
-      <input type="range" id="flip" min="1" max="90" step="1" value="90"><output id="flipo"></output></div>
-    <div class="row"><label for="tMax">tMax (s)</label>
-      <input type="range" id="tMax" min="1" max="15" step="0.5" value="10"><output id="tMaxo"></output></div>
+    <div class="ctl"><div class="head"><label for="T1">T1 (s)</label><output id="T1o"></output></div>
+      <input type="range" id="T1" min="0.1" max="5" step="0.05" value="0.9"></div>
+    <div class="ctl"><div class="head"><label for="TRexp">TR (s), log scale</label><output id="TRo"></output></div>
+      <input type="range" id="TRexp" min="-6" max="2.2" step="0.02" value="-1"></div>
+    <div class="ctl"><div class="head"><label for="flip">Flip angle (&deg;)</label><output id="flipo"></output></div>
+      <input type="range" id="flip" min="1" max="90" step="1" value="90"></div>
+    <div class="ctl"><div class="head"><label for="tMax">tMax (s)</label><output id="tMaxo"></output></div>
+      <input type="range" id="tMax" min="1" max="15" step="0.5" value="10"></div>
   </div>
 </div>
 
@@ -43,6 +80,7 @@
 // code generated for D. Gallichan by Claude, date: 16/10/26
 
 const N = 5000;
+const FONT = '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
 // Equivalent of Python's f"{x:g}" / f"{x:.3g}": significant figures, trailing zeros dropped
 function fmtG(x, sig) {
@@ -92,7 +130,15 @@ function ticks(lo, hi, target) {
 const canvas = document.getElementById("plot");
 const ctx = canvas.getContext("2d");
 
+function updateFills() {
+  for (const el of document.querySelectorAll("input[type=range]")) {
+    const lo = parseFloat(el.min), hi = parseFloat(el.max);
+    el.style.setProperty("--p", ((parseFloat(el.value) - lo) / (hi - lo) * 100) + "%");
+  }
+}
+
 function draw() {
+  updateFills();
   const T1 = parseFloat(document.getElementById("T1").value);
   const TR = Math.pow(2, parseFloat(document.getElementById("TRexp").value));
   const flip = parseFloat(document.getElementById("flip").value);
@@ -112,13 +158,13 @@ function draw() {
 
   const last = signal.length ? signal[signal.length - 1] : NaN;
   document.getElementById("title").innerHTML =
-    `<b>Tissue:</b> T1 = ${fmtG(T1, 6)}s &nbsp; ` +
-    `<b>Scan:</b> TR = ${fmtG(TR, 3)}s, Flip Angle = ${fmtG(flip, 6)}&deg; &nbsp; ` +
-    `<b>Resulting signal:</b> ${fmtG(last, 3)}`;
+    `<span class="k">Tissue:</span> T1 = <b>${fmtG(T1, 3)}s</b> &nbsp;&nbsp; ` +
+    `<span class="k">Scan:</span> TR = <b>${fmtG(TR, 3)}s</b>, Flip Angle = <b>${fmtG(flip, 3)}&deg;</b> &nbsp;&nbsp; ` +
+    `<span class="k">Resulting signal:</span> <b>${fmtG(last, 3)}</b>`;
 
   // HiDPI canvas sizing
   const cssW = canvas.clientWidth || 800;
-  const cssH = Math.round(cssW * 0.5);
+  const cssH = Math.round(cssW * 0.52);
   const dpr = window.devicePixelRatio || 1;
   canvas.style.height = cssH + "px";
   canvas.width = Math.round(cssW * dpr);
@@ -126,15 +172,15 @@ function draw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, cssW, cssH);
 
-  const mL = 55, mR = 14, mT = 12, mB = 48;
+  const mL = 55, mR = 14, mT = 40, mB = 48;   // top margin holds the legend strip
   const pw = cssW - mL - mR, ph = cssH - mT - mB;
   const X = x => mL + (x - xMin) / (xMax - xMin) * pw;
   const Y = y => mT + (1 - (y - yMin) / (yMax - yMin)) * ph;
 
   // Grid + ticks
-  ctx.font = "13px system-ui, sans-serif";
-  ctx.fillStyle = "#222";
-  ctx.strokeStyle = "#ddd";
+  ctx.font = `400 12.5px ${FONT}`;
+  ctx.fillStyle = "#6b7078";     // muted tick labels
+  ctx.strokeStyle = "#ececef";   // pale grid
   ctx.lineWidth = 1;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
@@ -180,34 +226,36 @@ function draw() {
   ctx.stroke();
   ctx.restore();
 
-  // Axes box
-  ctx.strokeStyle = "#222";
+  // Light left and bottom spines only (no top/right box)
+  ctx.strokeStyle = "#b9bdc4";
   ctx.lineWidth = 1;
-  ctx.strokeRect(mL + 0.5, mT + 0.5, pw, ph);
+  ctx.beginPath();
+  ctx.moveTo(mL + 0.5, mT);
+  ctx.lineTo(mL + 0.5, mT + ph + 0.5);
+  ctx.lineTo(mL + pw, mT + ph + 0.5);
+  ctx.stroke();
 
   // Axis label
-  ctx.fillStyle = "#222";
-  ctx.font = "14px system-ui, sans-serif";
+  ctx.fillStyle = "#4b5058";
+  ctx.font = `500 13.5px ${FONT}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
   ctx.fillText("Time (s)", mL + pw / 2, cssH - 8);
 
-  // Legend (upper right)
-  ctx.font = "13px system-ui, sans-serif";
+  // Legend: plain text strip above the axes, right-aligned, so it never hides data
+  ctx.font = `400 13px ${FONT}`;
   const items = [["Magnetisation", "#1f77b4", 2.5], ["Signal", "#ff0000", 8]];
-  const lw = 130, lh = 20 * items.length + 10;
-  const lx = mL + pw - lw - 8, ly = mT + 8;
-  ctx.fillStyle = "rgba(255,255,255,0.85)";
-  ctx.strokeStyle = "#ccc";
-  ctx.fillRect(lx, ly, lw, lh);
-  ctx.strokeRect(lx + 0.5, ly + 0.5, lw, lh);
-  items.forEach(([name, col, w], k) => {
-    const cy = ly + 15 + k * 20;
-    ctx.strokeStyle = col; ctx.lineWidth = w;
-    ctx.beginPath(); ctx.moveTo(lx + 8, cy); ctx.lineTo(lx + 32, cy); ctx.stroke();
-    ctx.fillStyle = "#222";
+  const swatch = 24, gap = 8, between = 22;
+  const widths = items.map(([name]) => swatch + gap + ctx.measureText(name).width);
+  let lx = mL + pw - widths.reduce((a, b) => a + b, 0) - between * (items.length - 1);
+  const cy = mT / 2 + 2;
+  items.forEach(([name, col, w], q) => {
+    ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = "butt";
+    ctx.beginPath(); ctx.moveTo(lx, cy); ctx.lineTo(lx + swatch, cy); ctx.stroke();
+    ctx.fillStyle = "#4b5058";
     ctx.textAlign = "left"; ctx.textBaseline = "middle";
-    ctx.fillText(name, lx + 40, cy);
+    ctx.fillText(name, lx + swatch + gap, cy);
+    lx += widths[q] + between;
   });
 }
 
@@ -216,6 +264,13 @@ for (const id of ["T1", "TRexp", "flip", "tMax"]) {
 }
 window.addEventListener("resize", draw);
 draw();
+// Canvas text uses whatever font is loaded at draw time, so redraw once Inter arrives
+if (document.fonts && document.fonts.load) {
+  Promise.all([
+    document.fonts.load('400 13px "Inter"'),
+    document.fonts.load('500 13px "Inter"'),
+  ]).then(draw).catch(() => {});
+}
 </script>
 </body>
 </html>
