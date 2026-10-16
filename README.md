@@ -33,6 +33,12 @@ https://github.com/user-attachments/assets/cae5059e-07e9-4048-bd94-de3d9f86522c
 
 [https://dangallichan.github.io/teaching-aids/magnetisation_signal_v2.html](https://dangallichan.github.io/teaching-aids/magnetisation_signal_v2.html)
 
+
+
+https://github.com/user-attachments/assets/6a5e71e9-370d-4910-a209-5ddfa6a0cf8e
+
+
+
 ---
 ### Some slightly more random tests of what is possible
 
