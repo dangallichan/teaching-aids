@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<!-- code generated for D. Gallichan by Claude, date: 16/10/26 -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Magnetisation, signal and Ernst angle</title>
+<!-- Inter from Google Fonts; falls back to the system UI font if offline -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body {
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 16px;
+    background: #fff;
+    color: #222;
+  }
+  #app { max-width: 1240px; margin: 0 auto; }
+  #title { text-align: center; font-size: 15px; margin: 4px 0 10px; line-height: 1.5; }
+  #title .k { color: #7a7f87; font-weight: 500; }
+  #title b { font-weight: 600; }
+
+  .plots { display: grid; grid-template-columns: 3fr 2fr; gap: 8px 20px; align-items: start; }
+  @media (max-width: 900px) { .plots { grid-template-columns: 1fr; } }
+  figure { margin: 0; min-width: 0; }
+  .fighead { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 30px; }
+  figcaption { font-size: 13px; font-weight: 600; color: #4b5058; margin: 0 0 0 6px; }
+  .toggle {
+    font: 500 12px "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: #3b4048; background: #f1f2f5; border: 1px solid #dfe1e6; border-radius: 999px;
+    padding: 5px 12px; cursor: pointer; white-space: nowrap;
+  }
+  .toggle:hover { background: #e8eaee; }
+  .toggle:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
+  canvas { width: 100%; display: block; }
+
+  .controls {
+    margin-top: 14px; padding: 14px 22px 8px; background: #f8f8fa; border-radius: 10px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 28px;
+  }
+  @media (max-width: 760px) { .controls { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 420px) { .controls { grid-template-columns: 1fr; } }
+  .ctl .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .ctl label { font-size: 14px; font-weight: 700; color: #222; }
+  .ctl:focus-within label, .ctl:active label { color: #1a6fd1; }
+  .ctl output { font-size: 16px; color: #1a6fd1; font-variant-numeric: tabular-nums; }
+
+  /* Slider: thick rounded track, blue fill, round thumb with a halo while in use */
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 30px;
+    margin: 4px 0 0; background: transparent; cursor: pointer; --p: 50%;
+  }
+  input[type=range]:focus { outline: none; }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 8px; border-radius: 4px;
+    background: linear-gradient(to right, #1a73e8 var(--p), #d6e0f3 var(--p));
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 18px; height: 18px; margin-top: -5px;
+    border-radius: 50%; background: #1a73e8; border: 0; box-shadow: 0 0 0 0 rgba(26,115,232,0);
+    transition: box-shadow .12s;
+  }
+  input[type=range]:focus-visible::-webkit-slider-thumb,
+  input[type=range]:active::-webkit-slider-thumb { box-shadow: 0 0 0 6px rgba(26,115,232,0.22); }
+  input[type=range]::-moz-range-track { height: 8px; border-radius: 4px; background: #d6e0f3; }
+  input[type=range]::-moz-range-progress { height: 8px; border-radius: 4px; background: #1a73e8; }
+  input[type=range]::-moz-range-thumb {
+    width: 18px; height: 18px; border: 0; border-radius: 50%; background: #1a73e8;
+    box-shadow: 0 0 0 0 rgba(26,115,232,0); transition: box-shadow .12s;
+  }
+  input[type=range]:focus-visible::-moz-range-thumb,
+  input[type=range]:active::-moz-range-thumb { box-shadow: 0 0 0 6px rgba(26,115,232,0.22); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="title"></div>
+
+  <div class="plots">
+    <figure>
+      <div class="fighead"><figcaption>Magnetisation and signal over time</figcaption></div>
+      <canvas id="plot"></canvas>
+    </figure>
+    <figure>
+      <div class="fighead">
+        <figcaption>Steady-state signal vs flip angle</figcaption>
+        <button type="button" class="toggle" id="yToggle" aria-pressed="false"
+                title="Switch between a fixed 0&ndash;1 y-axis and one that rescales to fit the curve">Y-axis: fixed 0&ndash;1</button>
+      </div>
+      <canvas id="plot2"></canvas>
+    </figure>
+  </div>
+
+  <div class="controls">
+    <div class="ctl"><div class="head"><label for="T1">T1 (s)</label><output id="T1o"></output></div>
+      <input type="range" id="T1" min="0.1" max="5" step="0.05" value="0.9"></div>
+    <div class="ctl"><div class="head"><label for="TRexp">TR (s), log scale</label><output id="TRo"></output></div>
+      <input type="range" id="TRexp" min="-6" max="2.2" step="0.02" value="-1"></div>
+    <div class="ctl"><div class="head"><label for="flip">Flip angle (&deg;)</label><output id="flipo"></output></div>
+      <input type="range" id="flip" min="1" max="90" step="1" value="90"></div>
+    <div class="ctl"><div class="head"><label for="tMax" title="Sets the time window of the left-hand plot only">tMax (s)</label><output id="tMaxo"></output></div>
+      <input type="range" id="tMax" min="1" max="15" step="0.5" value="10"></div>
+  </div>
+</div>
+
+<script>
+// code generated for D. Gallichan by Claude, date: 16/10/26
+
+const N = 5000;
+const FONT = '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const RED = "#ff0000", BLUE = "#1f77b4";
+let yAutoScale = false;   // y-axis mode of the flip-angle plot, toggled by the button
+
+// Equivalent of Python's f"{x:g}" / f"{x:.3g}": significant figures, trailing zeros dropped
+function fmtG(x, sig) {
+  if (!isFinite(x)) return "nan";
+  return String(Number(x.toPrecision(sig)));
+}
+
+// Time-domain simulation (Euler integration of T1 recovery with instantaneous RF pulses)
+function simulate(T1, TR, flipDeg, tMax) {
+  const dt = tMax / (N - 1);
+  const cosFlip = Math.cos(flipDeg * Math.PI / 180);
+  const sinFlip = Math.sin(flipDeg * Math.PI / 180);
+
+  // Indices of samples nearest each RF pulse time (TR, 2TR, ... < tMax)
+  const isFlip = new Uint8Array(N);
+  const iFlips = [];
+  for (let k = 1; k * TR < tMax; k++) {
+    const i = Math.round(k * TR / dt);
+    if (i > 0 && i < N) { isFlip[i] = 1; iFlips.push(i); }
+  }
+
+  const M = new Float64Array(N);
+  M[0] = 1;
+  for (let i = 1; i < N; i++) {
+    M[i] = M[i - 1] + ((1 - M[i - 1]) / T1) * dt;
+    if (isFlip[i]) M[i] *= cosFlip;
+  }
+
+  // Signal: magnetisation just before each flip, times sin(flip)
+  const signal = iFlips.map(i => M[i - 1] * sinFlip);
+  return { dt, M, iFlips, signal };
+}
+
+// Analytic steady-state (spoiled gradient-echo) signal; T1 and TR in the same units
+function simMRIsignal(T1, TR, flipDeg) {
+  const alpha = flipDeg * Math.PI / 180;
+  const E1 = Math.exp(-TR / T1);
+  return (1 - E1) * Math.sin(alpha) / (1 - Math.cos(alpha) * E1);
+}
+
+function niceStep(raw) {
+  const p = Math.pow(10, Math.floor(Math.log10(raw)));
+  const f = raw / p;
+  return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
+}
+function ticks(lo, hi, target) {
+  const step = niceStep((hi - lo) / target);
+  const out = [];
+  for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + 1e-9; v += step) {
+    out.push(Math.abs(v) < step * 1e-9 ? 0 : v);
+  }
+  return out;
+}
+
+const canvas1 = document.getElementById("plot");
+const canvas2 = document.getElementById("plot2");
+const wideLayout = window.matchMedia("(min-width: 901px)");
+
+// Size a canvas for the device pixel ratio and return a ready-to-use 2D context
+function prepCanvas(c, cssW, cssH) {
+  const dpr = window.devicePixelRatio || 1;
+  c.style.height = cssH + "px";
+  c.width = Math.round(cssW * dpr);
+  c.height = Math.round(cssH * dpr);
+  const ctx = c.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+  return ctx;
+}
+
+// Legend strip drawn above the axes, right-aligned. items: [{label, draw(ctx, x, cy)}]
+function drawLegend(ctx, items, rightX, cy) {
+  const swatch = 24, gap = 8, between = 22;
+  ctx.font = `400 13px ${FONT}`;
+  const widths = items.map(it => swatch + gap + ctx.measureText(it.label).width);
+  let lx = rightX - widths.reduce((a, b) => a + b, 0) - between * (items.length - 1);
+  items.forEach((it, q) => {
+    it.draw(ctx, lx, cy, swatch);
+    ctx.fillStyle = "#4b5058";
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.font = `400 13px ${FONT}`;
+    ctx.fillText(it.label, lx + swatch + gap, cy);
+    lx += widths[q] + between;
+  });
+}
+
+function drawAxesFrame(ctx, mL, mT, pw, ph, xLabel, cssW, cssH) {
+  // Light left and bottom spines only (no top/right box)
+  ctx.strokeStyle = "#b9bdc4";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(mL + 0.5, mT);
+  ctx.lineTo(mL + 0.5, mT + ph + 0.5);
+  ctx.lineTo(mL + pw, mT + ph + 0.5);
+  ctx.stroke();
+
+  ctx.fillStyle = "#4b5058";
+  ctx.font = `500 13.5px ${FONT}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillText(xLabel, mL + pw / 2, cssH - 8);
+}
+
+/* ---------- Plot 1: magnetisation and signal over time ---------- */
+function drawTimePlot(ctx, cssW, cssH, T1, TR, flip, tMax) {
+  const { dt, M, iFlips, signal } = simulate(T1, TR, flip, tMax);
+
+  let Mmin = Infinity;
+  for (let i = 0; i < N; i++) if (M[i] < Mmin) Mmin = M[i];
+  const yMin = Math.min(Mmin, 0), yMax = 1.05;
+  const xMin = 0, xMax = 1.05 * tMax;
+
+  const mL = 55, mR = 14, mT = 40, mB = 48;   // top margin holds the legend strip
+  const pw = cssW - mL - mR, ph = cssH - mT - mB;
+  const X = x => mL + (x - xMin) / (xMax - xMin) * pw;
+  const Y = y => mT + (1 - (y - yMin) / (yMax - yMin)) * ph;
+
+  // Grid + ticks
+  ctx.font = `400 12.5px ${FONT}`;
+  ctx.fillStyle = "#6b7078";
+  ctx.strokeStyle = "#ececef";
+  ctx.lineWidth = 1;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  for (const v of ticks(xMin, xMax, 8)) {
+    const px = Math.round(X(v)) + 0.5;
+    ctx.beginPath(); ctx.moveTo(px, mT); ctx.lineTo(px, mT + ph); ctx.stroke();
+    ctx.fillText(fmtG(v, 6), px, mT + ph + 6);
+  }
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (const v of ticks(yMin, yMax, 6)) {
+    const py = Math.round(Y(v)) + 0.5;
+    ctx.beginPath(); ctx.moveTo(mL, py); ctx.lineTo(mL + pw, py); ctx.stroke();
+    ctx.fillText(fmtG(v, 6), mL - 6, py);
+  }
+
+  // Clip data to the axes
+  ctx.save();
+  ctx.beginPath(); ctx.rect(mL, mT, pw, ph); ctx.clip();
+
+  // Signal bars (width limited so dense pulse trains don't fully overlap)
+  const spacingPx = iFlips.length > 1 ? (X(iFlips[1] * dt) - X(iFlips[0] * dt)) : 8;
+  ctx.strokeStyle = RED;
+  ctx.lineWidth = Math.max(1, Math.min(8, spacingPx * 0.8));
+  ctx.lineCap = "butt";
+  ctx.beginPath();
+  for (let k = 0; k < iFlips.length; k++) {
+    const px = X(iFlips[k] * dt);
+    ctx.moveTo(px, Y(0));
+    ctx.lineTo(px, Y(signal[k]));
+  }
+  ctx.stroke();
+
+  // Magnetisation curve
+  ctx.strokeStyle = BLUE;
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  for (let i = 0; i < N; i++) {
+    const px = X(i * dt), py = Y(M[i]);
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  drawAxesFrame(ctx, mL, mT, pw, ph, "Time (s)", cssW, cssH);
+
+  drawLegend(ctx, [
+    { label: "Magnetisation", draw: (c, x, cy, w) => { c.strokeStyle = BLUE; c.lineWidth = 2.5; c.lineCap = "butt";
+        c.beginPath(); c.moveTo(x, cy); c.lineTo(x + w, cy); c.stroke(); } },
+    { label: "Signal", draw: (c, x, cy, w) => { c.strokeStyle = RED; c.lineWidth = 8; c.lineCap = "butt";
+        c.beginPath(); c.moveTo(x, cy); c.lineTo(x + w, cy); c.stroke(); } },
+  ], mL + pw, mT / 2 + 2);
+
+  return signal.length ? signal[signal.length - 1] : NaN;
+}
+
+/* ---------- Plot 2: steady-state signal vs flip angle ---------- */
+function drawFlipPlot(ctx, cssW, cssH, T1, TR, flip) {
+  const E1 = Math.exp(-TR / T1);
+  const ernst = Math.acos(E1) * 180 / Math.PI;     // flip angle that maximises the signal
+  const sErnst = simMRIsignal(T1, TR, ernst);
+  const sNow = simMRIsignal(T1, TR, flip);
+
+  // Fixed: 0-1.05 (matches the time plot's signal scale). Auto: fit the curve's peak with headroom.
+  const xMin = 0, xMax = 90, yMin = 0, yMax = yAutoScale ? sErnst * 1.25 : 1.05;
+  const mL = 55, mR = 18, mT = 40, mB = 48;
+  const pw = cssW - mL - mR, ph = cssH - mT - mB;
+  const X = x => mL + (x - xMin) / (xMax - xMin) * pw;
+  const Y = y => mT + (1 - (y - yMin) / (yMax - yMin)) * ph;
+
+  // Grid + ticks
+  ctx.font = `400 12.5px ${FONT}`;
+  ctx.fillStyle = "#6b7078";
+  ctx.strokeStyle = "#ececef";
+  ctx.lineWidth = 1;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  for (let v = 0; v <= 90; v += 15) {
+    const px = Math.round(X(v)) + 0.5;
+    ctx.beginPath(); ctx.moveTo(px, mT); ctx.lineTo(px, mT + ph); ctx.stroke();
+    ctx.fillText(String(v), px, mT + ph + 6);
+  }
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (const v of ticks(yMin, yMax, 6)) {
+    const py = Math.round(Y(v)) + 0.5;
+    ctx.beginPath(); ctx.moveTo(mL, py); ctx.lineTo(mL + pw, py); ctx.stroke();
+    ctx.fillText(fmtG(v, 6), mL - 6, py);
+  }
+
+  // Ernst angle guide (dashed vertical line)
+  ctx.save();
+  ctx.setLineDash([5, 4]);
+  ctx.strokeStyle = "#8a8f98";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(X(ernst), mT); ctx.lineTo(X(ernst), mT + ph); ctx.stroke();
+  ctx.restore();
+
+  // Steady-state curve
+  ctx.strokeStyle = RED;
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  for (let a = 0; a <= 90; a += 0.5) {
+    const px = X(a), py = Y(simMRIsignal(T1, TR, a));
+    a === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+
+  // Ernst-angle maximum (hollow ring)
+  ctx.beginPath();
+  ctx.arc(X(ernst), Y(sErnst), 5, 0, 2 * Math.PI);
+  ctx.fillStyle = "#fff";
+  ctx.fill();
+  ctx.strokeStyle = "#4b5058";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Current flip angle: dashed guides + filled marker + value label
+  const px = X(flip), py = Y(sNow);
+  ctx.save();
+  ctx.setLineDash([3, 3]);
+  ctx.strokeStyle = "rgba(255,0,0,0.45)";
+  ctx.lineWidth = 1.25;
+  ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, mT + ph); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(mL, py); ctx.stroke();
+  ctx.restore();
+
+  ctx.beginPath();
+  ctx.arc(px, py, 6.5, 0, 2 * Math.PI);
+  ctx.fillStyle = RED;
+  ctx.fill();
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.font = `600 12.5px ${FONT}`;
+  ctx.fillStyle = "#222";
+  ctx.textBaseline = "alphabetic";
+  const label = fmtG(sNow, 3);
+  const nearRight = px > mL + pw - 52;
+  ctx.textAlign = nearRight ? "right" : "left";
+  ctx.fillText(label, nearRight ? px - 11 : px + 11, py - 9);
+
+  drawAxesFrame(ctx, mL, mT, pw, ph, "Flip angle (°)", cssW, cssH);
+
+  drawLegend(ctx, [
+    { label: "Current flip angle", draw: (c, x, cy, w) => { c.beginPath(); c.arc(x + w / 2, cy, 5.5, 0, 2 * Math.PI);
+        c.fillStyle = RED; c.fill(); } },
+    { label: `Ernst angle ${fmtG(ernst, 3)}°`, draw: (c, x, cy, w) => { c.beginPath(); c.arc(x + w / 2, cy, 4.5, 0, 2 * Math.PI);
+        c.fillStyle = "#fff"; c.fill(); c.strokeStyle = "#4b5058"; c.lineWidth = 2; c.stroke(); } },
+  ], mL + pw, mT / 2 + 2);
+
+  return { ernst, sNow, sErnst };
+}
+
+/* ---------- Controls ---------- */
+function updateFills() {
+  for (const el of document.querySelectorAll("input[type=range]")) {
+    const lo = parseFloat(el.min), hi = parseFloat(el.max);
+    el.style.setProperty("--p", ((parseFloat(el.value) - lo) / (hi - lo) * 100) + "%");
+  }
+}
+
+function draw() {
+  updateFills();
+
+  const T1 = parseFloat(document.getElementById("T1").value);
+  const TR = Math.pow(2, parseFloat(document.getElementById("TRexp").value));
+  const flip = parseFloat(document.getElementById("flip").value);
+  const tMax = parseFloat(document.getElementById("tMax").value);
+
+  document.getElementById("T1o").textContent = fmtG(T1, 3);
+  document.getElementById("TRo").textContent = fmtG(TR, 3);
+  document.getElementById("flipo").textContent = fmtG(flip, 3);
+  document.getElementById("tMaxo").textContent = fmtG(tMax, 3);
+
+  // Canvas sizes: the two plots share a height when side by side
+  const w1 = canvas1.clientWidth || 700;
+  const w2 = canvas2.clientWidth || 440;
+  const h1 = Math.round(w1 * (wideLayout.matches ? 0.56 : 0.52));
+  const h2 = wideLayout.matches ? h1 : Math.round(w2 * 0.6);
+
+  const last = drawTimePlot(prepCanvas(canvas1, w1, h1), w1, h1, T1, TR, flip, tMax);
+  drawFlipPlot(prepCanvas(canvas2, w2, h2), w2, h2, T1, TR, flip);
+
+  document.getElementById("title").innerHTML =
+    `<span class="k">Tissue:</span> T1 = <b>${fmtG(T1, 3)}s</b> &nbsp;&nbsp; ` +
+    `<span class="k">Scan:</span> TR = <b>${fmtG(TR, 3)}s</b>, Flip Angle = <b>${fmtG(flip, 3)}&deg;</b> &nbsp;&nbsp; ` +
+    `<span class="k">Signal at end of time plot:</span> <b>${fmtG(last, 3)}</b> &nbsp;&nbsp; ` +
+    `<span class="k">Steady state:</span> <b>${fmtG(simMRIsignal(T1, TR, flip), 3)}</b>`;
+}
+
+for (const id of ["T1", "TRexp", "flip", "tMax"]) {
+  document.getElementById(id).addEventListener("input", draw);
+}
+window.addEventListener("resize", draw);
+
+const yToggle = document.getElementById("yToggle");
+yToggle.addEventListener("click", () => {
+  yAutoScale = !yAutoScale;
+  yToggle.textContent = yAutoScale ? "Y-axis: auto-scale" : "Y-axis: fixed 0–1";
+  yToggle.setAttribute("aria-pressed", String(yAutoScale));
+  draw();
+});
+
+draw();
+// Canvas text uses whatever font is loaded at draw time, so redraw once Inter arrives
+if (document.fonts && document.fonts.load) {
+  Promise.all([
+    document.fonts.load('400 13px "Inter"'),
+    document.fonts.load('500 13px "Inter"'),
+    document.fonts.load('600 13px "Inter"'),
+  ]).then(draw).catch(() => {});
+}
+</script>
+</body>
+</html>
