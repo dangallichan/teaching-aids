@@ -11,4 +11,5 @@ https://dangallichan.github.io/teaching-aids/phaseEncoding.html)
 https://dangallichan.github.io/teaching-aids/simContrast.html)
 
 
-<video src="https://github.com/dangallichan/teaching-aids/raw/main/MRI_contrast_simulator.mp4" controls width="100%"></video>
+https://github.com/user-attachments/assets/945d8d5a-9443-41c9-9c66-c6b69ca250d1
+
