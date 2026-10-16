@@ -30,8 +30,13 @@ https://github.com/user-attachments/assets/3b601d54-97b7-40bc-a0cd-1e0cb17aa41e
 
 https://github.com/user-attachments/assets/cae5059e-07e9-4048-bd94-de3d9f86522c
 
-# Some slightly more random tests of what is possible
+
+
+---
+### Some slightly more random tests of what is possible
+
 [https://dangallichan.github.io/teaching-aids/parameterisedDog.html](https://dangallichan.github.io/teaching-aids/parameterisedDog.html)
+
 [https://dangallichan.github.io/teaching-aids/snakeWordGame.html](https://dangallichan.github.io/teaching-aids/snakeWordGame.html)
 
 
