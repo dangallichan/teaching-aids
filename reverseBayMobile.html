@@ -1,0 +1,884 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!-- code generated for D. Gallichan by Claude, date: 31/10/26 -->
+<title>Reverse Bay Mobile</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* code generated for D. Gallichan by Claude, date: 31/10/26 */
+/* Layout concept: phone cab. Portrait: bay level bar, the yard rotated so the rig points up the screen, then wheel (left thumb) and pedals (right thumb).
+   Landscape: wheel left, yard centre, pedals right. Single dark look by choice. */
+:root{
+  --tarmac:#1d2228;
+  --tarmac-2:#252b32;
+  --panel:#171b20;
+  --line:#303842;
+  --ink:#e6e9ed;
+  --ink-2:#97a1ad;
+  --hivis:#f6c500;
+  --ok:#3fcf8e;
+  --warn:#ffb020;
+  --bad:#ff5a4f;
+  --font-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --font-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--panel);overscroll-behavior:none}
+body{
+  color:var(--ink);
+  font:15px/1.45 var(--font-body);
+  padding-block:8px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  touch-action:manipulation;
+  -webkit-user-select:none;user-select:none;
+}
+button{font:inherit;color:inherit;touch-action:manipulation}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+kbd{font:600 12px var(--font-body);padding:1px 6px;border:1px solid #46505b;border-bottom-width:2px;border-radius:3px;background:#12161a;color:var(--ink)}
+
+#app{max-width:1100px;margin:0 auto}
+.top{display:flex;align-items:stretch;gap:8px;margin-bottom:10px}
+.lvnav{display:flex;align-items:stretch;gap:6px;min-width:0;flex:1}
+.sq{flex:none;width:42px;height:44px;display:grid;place-items:center;background:var(--tarmac-2);border:1px solid var(--line);border-radius:3px;cursor:pointer;font:600 22px/1 var(--font-display)}
+.lvname{flex:1;min-width:0;display:flex;align-items:baseline;justify-content:center;gap:8px;padding:0 8px;background:var(--tarmac-2);border:1px solid var(--line);border-radius:3px;cursor:pointer;
+  font:600 18px/1 var(--font-display);letter-spacing:.04em;text-transform:uppercase;align-items:center;white-space:nowrap}
+.lvname .n{color:var(--hivis)}
+.lvname .nm{overflow:hidden;text-overflow:ellipsis}
+.lvname .st{font-size:12px;color:var(--ink-2);letter-spacing:.1em}
+.sq:focus-visible,.lvname:focus-visible,.pedal:focus-visible,.ghost:focus-visible,.cta:focus-visible,.wheel:focus-visible,.seg button:focus-visible,.lv:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+.stage{display:grid;gap:12px}
+#app[data-layout="portrait"] .stage{grid-template-columns:minmax(0,1fr) 132px;grid-template-areas:"yard yard" "steer ped"}
+#app[data-layout="landscape"] .stage{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);grid-template-areas:"steer yard ped";align-items:center}
+.yard{grid-area:yard;justify-self:center;position:relative;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--tarmac);max-width:100%}
+.yard canvas{display:block;width:100%;height:auto;touch-action:none}
+#steerBox{grid-area:steer;min-width:0}
+#pedBox{grid-area:ped}
+
+.hud{position:absolute;left:0;right:0;top:0;padding:7px 10px 8px;background:linear-gradient(rgba(10,12,14,.82),rgba(10,12,14,.55));pointer-events:none;display:grid;gap:5px;font-variant-numeric:tabular-nums}
+.hud .r1{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:end}
+.hl{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--ink-2)}
+.hl b{font:600 17px/1 var(--font-display);color:var(--ink);letter-spacing:.03em}
+.hud .meter{margin:3px 0 0;height:10px}
+.gs{font:600 17px/1 var(--font-display);letter-spacing:.03em;white-space:nowrap;display:flex;align-items:center}
+.gs b{display:inline-grid;place-items:center;width:22px;height:22px;background:var(--hivis);color:#17130a;border-radius:3px;margin-right:7px}
+.r2{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--ink-2)}
+.r2 b{color:var(--ink);font-weight:600}
+.r3{display:flex;flex-wrap:wrap;gap:2px 10px;font-size:12px;color:var(--ink-2)}
+.r3 b{color:var(--ink);font-weight:600}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:baseline;background:#3a434d}
+.dot.ok{background:var(--ok)}
+.dot.bad{background:var(--warn)}
+.lust{color:var(--hivis);font-weight:600}
+
+.meter{position:relative;height:12px;background:#12161a;border:1px solid var(--line);border-radius:2px;overflow:hidden}
+.meter .bar{position:absolute;top:0;bottom:0;left:50%;width:0;background:var(--ok)}
+.meter[data-zone="warn"] .bar{background:var(--warn)}
+.meter[data-zone="bad"] .bar{background:var(--bad)}
+.meter .zero{position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--ink-2)}
+
+.banner{position:absolute;left:50%;top:92px;transform:translateX(-50%);max-width:calc(100% - 20px);padding:6px 12px;background:rgba(10,12,14,.9);
+  border:1px solid var(--bad);border-radius:3px;font:600 16px var(--font-display);letter-spacing:.06em;text-transform:uppercase;pointer-events:none;text-align:center}
+.banner.warn{border-color:var(--warn)}
+.banner.ok{border-color:var(--ok)}
+.intro{position:absolute;left:10px;right:10px;bottom:10px;padding:10px 12px;background:rgba(10,12,14,.88);border:1px solid var(--line);border-radius:3px;font-size:13px;pointer-events:none}
+.intro b{font:600 17px var(--font-display);letter-spacing:.05em;text-transform:uppercase;margin-right:6px}
+.intro span{color:var(--ink-2)}
+.result{position:absolute;inset:0;display:grid;place-items:center;padding:12px;background:rgba(10,12,14,.62)}
+.rcard{width:min(100%,340px);background:var(--tarmac-2);border:1px solid var(--hivis);border-radius:4px;padding:16px 18px;text-align:center}
+.rcard h3{margin:0;font:700 40px/1 var(--font-display);text-transform:uppercase;letter-spacing:.04em}
+.rcard .stars{margin:6px 0 12px;font-size:26px;letter-spacing:.2em;color:var(--hivis)}
+.rcard .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.rcard .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.val{font:600 21px/1.1 var(--font-display);letter-spacing:.03em;font-variant-numeric:tabular-nums}
+.lab{color:var(--ink-2);font-size:13px}
+.cta{background:var(--hivis);color:#17130a;border:0;border-radius:3px;padding:12px 18px;font:700 18px var(--font-display);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.ghost{background:transparent;border:1px solid var(--line);border-radius:3px;padding:10px 14px;cursor:pointer;color:var(--ink)}
+
+.wheel{position:relative;height:128px;background:var(--tarmac-2);border:1px solid var(--line);border-radius:4px;touch-action:none;cursor:grab}
+.wheel .track{position:absolute;left:22px;right:22px;top:50%;height:8px;margin-top:-4px;background:#12161a;border:1px solid var(--line);border-radius:4px}
+.wheel .tick{position:absolute;left:50%;top:-12px;bottom:-12px;width:2px;margin-left:-1px;background:var(--ink-2)}
+.wheel .knob{position:absolute;top:50%;left:50%;width:48px;height:48px;margin:-24px 0 0 -24px;border-radius:50%;background:var(--hivis);border:3px solid #17130a;box-shadow:0 0 0 2px var(--hivis)}
+.wheel .wl,.wheel .wr{position:absolute;bottom:10px;font:600 12px var(--font-display);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
+.wheel .wl{left:12px}
+.wheel .wr{right:12px}
+.wheel .wt{position:absolute;top:10px;left:0;right:0;text-align:center;font:600 12px var(--font-display);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
+.ped{display:flex;flex-direction:column;gap:8px;height:128px}
+.pedal{flex:1;min-height:0;padding:4px 10px;background:#2b323a;border:1px solid #3a434d;border-radius:4px;cursor:pointer;
+  font:700 22px/1 var(--font-display);letter-spacing:.07em;text-transform:uppercase;touch-action:none;-webkit-touch-callout:none}
+.pedal.on{background:var(--hivis);border-color:var(--hivis);color:#17130a}
+
+.sheet{position:fixed;inset:0;z-index:50;background:var(--panel);overflow-y:auto;-webkit-user-select:auto;user-select:auto;
+  padding:calc(12px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(28px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet-in{max-width:520px;margin:0 auto;display:grid;gap:12px}
+.tape{height:8px;background:repeating-linear-gradient(135deg,var(--hivis) 0 12px,#14171b 12px 24px)}
+.sh-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sh-head h2{margin:0;font:700 34px/1 var(--font-display);text-transform:uppercase;letter-spacing:.02em}
+.card{background:var(--tarmac-2);border:1px solid var(--line);border-radius:4px;padding:12px 14px;min-width:0}
+.card h3{margin:0 0 10px;font:600 15px var(--font-display);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
+.levels{display:flex;flex-wrap:wrap;gap:8px}
+.lv{display:flex;align-items:baseline;gap:8px;padding:10px 12px;background:#12161a;border:1px solid var(--line);border-radius:3px;cursor:pointer;
+  font-family:var(--font-display);font-weight:600;font-size:17px;letter-spacing:.04em;text-transform:uppercase;line-height:1.1}
+.lv .n{color:var(--hivis)}
+.lv .st{font-size:13px;color:var(--ink-2);letter-spacing:.12em}
+.lv[aria-current="true"]{background:var(--hivis);border-color:var(--hivis);color:#17130a}
+.lv[aria-current="true"] .n,.lv[aria-current="true"] .st{color:#17130a}
+.lvhelp{margin:12px 0 0;color:var(--ink-2);font-size:14px}
+.seg{display:flex;border:1px solid var(--line);border-radius:3px;overflow:hidden;margin-bottom:10px}
+.seg button{flex:1;padding:11px 6px;background:#12161a;border:0;border-right:1px solid var(--line);cursor:pointer;font-size:14px;line-height:1.2}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--hivis);color:#17130a;font-weight:600}
+.tog{display:flex;align-items:center;gap:12px;padding:8px 0;cursor:pointer}
+.tog input{width:22px;height:22px;accent-color:var(--hivis);margin:0}
+.tips{margin:0;padding-left:18px;color:var(--ink-2);font-size:14px}
+.tips li{margin-bottom:6px}
+.tips b{color:var(--ink);font-weight:600}
+.fine{margin:10px 0 0;color:var(--ink-2);font-size:12.5px}
+</style>
+
+<div id="app" data-layout="portrait">
+  <h1 class="vh">Reverse Bay</h1>
+  <div class="top" id="top">
+    <div class="lvnav">
+      <button class="sq" id="prev" type="button" aria-label="Previous bay">&lsaquo;</button>
+      <button class="lvname" id="lvname" type="button" aria-label="Choose a bay"></button>
+      <button class="sq" id="next" type="button" aria-label="Next bay">&rsaquo;</button>
+    </div>
+    <button class="sq" id="restart" type="button" aria-label="Restart this bay">&#8635;</button>
+    <button class="sq" id="open" type="button" aria-label="Open setup">&#8801;</button>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="yard" id="yardBox">
+      <canvas id="yard" width="600" height="900" aria-label="Top-down view of the yard. The rig points up the screen."></canvas>
+      <div class="hud" id="hud">
+        <div class="r1">
+          <div>
+            <div class="hl"><span>Hitch angle</span><b id="hitchVal">0&deg;</b></div>
+            <div class="meter" id="hitchMeter" data-zone="ok"><div class="zero"></div><div class="bar"></div></div>
+          </div>
+          <div class="gs"><b id="gearVal">N</b><span id="speedVal">0.0 km/h</span></div>
+        </div>
+        <div class="r2">
+          <span><b id="sTime">0:00.0</b> &middot; <b id="sPulls">0</b> pull-ups &middot; <b id="sHits">0</b> hits</span>
+          <span class="lust" id="luStatus"></span>
+        </div>
+        <div class="r3" id="hudBay">
+          <span><i class="dot" id="dAng"></i>Angle <b id="vAng">0&deg;</b></span>
+          <span><i class="dot" id="dLat"></i>Offset <b id="vLat">0.0 m</b></span>
+          <span><i class="dot" id="dGap"></i>Gap <b id="vGap">0.0 m</b></span>
+        </div>
+      </div>
+      <div class="banner" id="banner" hidden></div>
+      <div class="intro" id="intro"></div>
+      <div class="result" id="result" hidden>
+        <div class="rcard">
+          <h3>Docked</h3>
+          <div class="stars" id="rStars" aria-label="Rating"></div>
+          <div class="nums">
+            <div><div class="val" id="rTime">0:00.0</div><div class="lab">Time</div></div>
+            <div><div class="val" id="rPulls">0</div><div class="lab">Pull-ups</div></div>
+            <div><div class="val" id="rHits">0</div><div class="lab">Hits</div></div>
+          </div>
+          <div class="btns">
+            <button class="cta" id="rNext" type="button">Next bay</button>
+            <button class="ghost" id="rAgain" type="button">Go again</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="steerBox">
+      <div class="wheel" id="wheel" role="group" aria-label="Steering. Drag left or right.">
+        <div class="wt">Steering</div>
+        <div class="track"><div class="tick"></div></div>
+        <div class="knob" id="knob"></div>
+        <span class="wl">Left</span><span class="wr">Right</span>
+      </div>
+    </div>
+    <div id="pedBox">
+      <div class="ped">
+        <button class="pedal" id="pedFwd" type="button">&#9650; Forward</button>
+        <button class="pedal" id="pedRev" type="button">&#9660; Reverse</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-label="Setup">
+  <div class="sheet-in">
+    <div class="tape" aria-hidden="true"></div>
+    <div class="sh-head"><h2>Reverse Bay</h2><button class="cta" id="close" type="button">Done</button></div>
+    <div class="card">
+      <h3>Bays</h3>
+      <div class="levels" id="levels"></div>
+      <p class="lvhelp" id="lvhelp"></p>
+    </div>
+    <div class="card">
+      <h3>Setup</h3>
+      <div class="seg" id="segVeh" role="group" aria-label="Vehicle">
+        <button type="button" data-v="artic" aria-pressed="true">Articulated</button>
+        <button type="button" data-v="rigid" aria-pressed="false">Rigid + drawbar</button>
+      </div>
+      <div class="seg" id="segSpd" role="group" aria-label="Top speed">
+        <button type="button" data-s="0" aria-pressed="false">4 km/h</button>
+        <button type="button" data-s="1" aria-pressed="true">6 km/h</button>
+        <button type="button" data-s="2" aria-pressed="false">11 km/h</button>
+      </div>
+      <label class="tog" for="optPreview"><input type="checkbox" id="optPreview" checked> Path preview (dotted)</label>
+      <label class="tog" for="optTrace"><input type="checkbox" id="optTrace" checked> Trailer rear trace (yellow)</label>
+      <label class="tog" for="optCentre"><input type="checkbox" id="optCentre" checked> Wheel springs back to centre</label>
+    </div>
+    <div class="card">
+      <h3>Tips</h3>
+      <ul class="tips">
+        <li>Hold <b>Reverse</b> and drag the wheel with your other thumb. Reversing flips the response: steer <b>opposite</b> to the way you want the trailer's rear to go.</li>
+        <li>Small, early corrections. Once the hitch angle passes about 40&deg;, let go and pull forward to straighten.</li>
+        <li>Each pull-up (forward after reversing) costs a star at the top rating.</li>
+        <li>Turn your phone sideways for a wider view with the wheel and pedals at either side.</li>
+      </ul>
+      <p class="fine">Simplified model: no tyre slip, one trailer axle point. It shows how a rig behaves, not a specific real vehicle.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* code generated for D. Gallichan by Claude, date: 31/10/26 */
+(function () {
+'use strict';
+
+var WORLD_W = 60, WORLD_H = 40, D2R = Math.PI / 180;
+function wrap(a) { a = a % (2 * Math.PI); if (a > Math.PI) a -= 2 * Math.PI; else if (a < -Math.PI) a += 2 * Math.PI; return a; }
+function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+
+/*CORE-START*/
+/* Units are metres and radians. World x runs right, y runs down, angles run clockwise on screen.
+   A vehicle state s = {x, y, t1, t2}: x,y is the tractor rear axle, t1 the tractor heading, t2 the trailer heading.
+   hx is the hitch position along the tractor (forward positive). L2 is hitch to trailer axle. */
+var VEHICLES = {
+  artic: { Lw: 4.0, fo: 1.3, ro: 1.1, W: 2.5, cab: 2.6, hx: 0.25, L2: 7.8, trFront: 7.8, trRear: 2.2, trW: 2.55, drawbar: false, maxSteer: 38 * D2R, jack: 70 * D2R },
+  rigid: { Lw: 4.4, fo: 1.3, ro: 2.0, W: 2.45, cab: 2.2, hx: -2.35, L2: 6.0, trFront: 3.4, trRear: 2.1, trW: 2.4, drawbar: true, maxSteer: 36 * D2R, jack: 80 * D2R }
+};
+
+function advance(s, V, v, steer, dt) {
+  var c1 = Math.cos(s.t1), s1 = Math.sin(s.t1);
+  var th1 = v * Math.tan(steer) / V.Lw;
+  var vhx = v * c1 - V.hx * th1 * s1;
+  var vhy = v * s1 + V.hx * th1 * c1;
+  var dth2 = (-vhx * Math.sin(s.t2) + vhy * Math.cos(s.t2)) / V.L2;
+  s.x += v * c1 * dt;
+  s.y += v * s1 * dt;
+  s.t1 += th1 * dt;
+  s.t2 += dth2 * dt;
+}
+
+function rectPoly(cx, cy, ang, x0, x1, hw) {
+  var c = Math.cos(ang), s = Math.sin(ang);
+  return [[x0, -hw], [x1, -hw], [x1, hw], [x0, hw]].map(function (p) {
+    return [cx + p[0] * c - p[1] * s, cy + p[0] * s + p[1] * c];
+  });
+}
+function trailerAxle(s, V) {
+  var hx = s.x + V.hx * Math.cos(s.t1), hy = s.y + V.hx * Math.sin(s.t1);
+  return { hx: hx, hy: hy, ax: hx - V.L2 * Math.cos(s.t2), ay: hy - V.L2 * Math.sin(s.t2) };
+}
+function bodies(s, V) {
+  var t = trailerAxle(s, V);
+  return {
+    truck: rectPoly(s.x, s.y, s.t1, -V.ro, V.Lw + V.fo, V.W / 2),
+    trailer: rectPoly(t.ax, t.ay, s.t2, -V.trRear, V.trFront, V.trW / 2),
+    t: t
+  };
+}
+function rearCentre(s, V) {
+  var t = trailerAxle(s, V);
+  return [t.ax - V.trRear * Math.cos(s.t2), t.ay - V.trRear * Math.sin(s.t2)];
+}
+function polysOverlap(A, B) {
+  var lists = [A, B];
+  for (var k = 0; k < 2; k++) {
+    var P = lists[k];
+    for (var i = 0; i < P.length; i++) {
+      var p = P[i], q = P[(i + 1) % P.length];
+      var nx = q[1] - p[1], ny = p[0] - q[0];
+      var minA = Infinity, maxA = -Infinity, minB = Infinity, maxB = -Infinity, d, j;
+      for (j = 0; j < A.length; j++) { d = A[j][0] * nx + A[j][1] * ny; if (d < minA) minA = d; if (d > maxA) maxA = d; }
+      for (j = 0; j < B.length; j++) { d = B[j][0] * nx + B[j][1] * ny; if (d < minB) minB = d; if (d > maxB) maxB = d; }
+      if (maxA < minB || maxB < minA) return false;
+    }
+  }
+  return true;
+}
+function outOfBounds(P) {
+  for (var i = 0; i < P.length; i++) if (P[i][0] < 0 || P[i][0] > WORLD_W || P[i][1] < 0 || P[i][1] > WORLD_H) return true;
+  return false;
+}
+function blockedBy(b, walls) {
+  if (outOfBounds(b.truck) || outOfBounds(b.trailer)) return true;
+  for (var i = 0; i < walls.length; i++) {
+    if (polysOverlap(b.truck, walls[i]) || polysOverlap(b.trailer, walls[i])) return true;
+  }
+  return false;
+}
+
+var HALF = Math.PI / 2;
+var LEVELS = [
+  { name: 'Straight Back', par: 1, start: [46, 20, 0],
+    brief: 'Reverse straight along the lane and stop with the whole trailer inside the bay.',
+    bay: { B: [2.4, 20], phi: 0, extra: 2.2, num: 7 } },
+  { name: 'Offset Lane', par: 2, start: [46, 25, 0],
+    brief: 'The bay is 12 m off your line. Slide the trailer across, then straighten up.',
+    bay: { B: [2.4, 13], phi: 0, extra: 2.0, num: 3 } },
+  { name: 'Bay on the Left', par: 2, start: [13, 29, 0],
+    brief: 'Drive past the bay, then reverse the trailer into the gap on your left.',
+    bay: { B: [36, 2.4], phi: HALF, extra: 1.9, num: 5 } },
+  { name: 'Bay on the Right', par: 2, start: [13, 11, 0],
+    brief: 'Same again, mirrored. The bay is on your right.',
+    bay: { B: [36, 37.6], phi: -HALF, extra: 1.9, num: 2 } },
+  { name: 'Dock Row', par: 3, start: [12, 28, 0],
+    brief: 'A tight bay between two parked trailers, with 0.7 m to spare each side.',
+    bay: { B: [30, 2.4], phi: HALF, extra: 1.4, num: 4, parked: true } },
+  { name: 'Open Yard', par: 0, start: [34, 20, 0],
+    brief: 'No target. Reverse around the cones and blocks, and learn how the rig responds.',
+    bay: null, yard: true }
+];
+
+function makeCone(x, y) { return { x: x, y: y, poly: rectPoly(x, y, 0, -0.27, 0.27, 0.27), down: false, rot: 0 }; }
+function rectP(x, y, w, h) { return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]; }
+
+function buildLevel(spec, V) {
+  var out = { solids: [], walls: [], cones: [], doors: [], bay: null };
+  var bs = spec.bay;
+  if (bs) {
+    var phi = bs.phi, B = bs.B, c = Math.cos(phi), sn = Math.sin(phi);
+    var f = function (u, v) { return [B[0] + u * c - v * sn, B[1] + u * sn + v * c]; };
+    var lr = function (u0, u1, v0, v1) { return [f(u0, v0), f(u1, v0), f(u1, v1), f(u0, v1)]; };
+    var len = V.trFront + V.trRear, w = V.trW + bs.extra, depth = len + 2.2;
+    out.bay = { B: B, phi: phi, w: w, depth: depth, len: len, num: bs.num, f: f, lr: lr, parked: !!bs.parked };
+    out.solids.push({ kind: 'building', poly: lr(-2.4, 0, -90, 90) });
+    if (bs.parked) {
+      var vc = w / 2 + V.trW / 2;
+      [-1, 1].forEach(function (sg) {
+        out.solids.push({ kind: 'parked', poly: lr(0.4, 0.4 + len, sg * vc - V.trW / 2, sg * vc + V.trW / 2) });
+        var p = f(0.4 + len + 1.0, sg * vc);
+        out.cones.push(makeCone(p[0], p[1]));
+      });
+      out.doors = [-vc, 0, vc];
+    } else {
+      out.solids.push({ kind: 'kerb', poly: lr(0, depth, w / 2, w / 2 + 0.6) });
+      out.solids.push({ kind: 'kerb', poly: lr(0, depth, -w / 2 - 0.6, -w / 2) });
+      [-1, 1].forEach(function (sg) {
+        var p = f(depth + 0.5, sg * (w / 2 + 1.0));
+        out.cones.push(makeCone(p[0], p[1]));
+      });
+      out.doors = [0];
+    }
+  }
+  if (spec.yard) {
+    out.solids.push({ kind: 'block', poly: rectP(4, 5, 9, 1.8) });
+    out.solids.push({ kind: 'block', poly: rectP(44, 33, 10, 1.8) });
+    out.solids.push({ kind: 'block', poly: rectP(49, 7, 7, 3) });
+    for (var i = 0; i < 7; i++) out.cones.push(makeCone(14 + i * 5.5, i % 2 ? 25.5 : 14.5));
+  }
+  out.walls = out.solids.map(function (s) { return s.poly; });
+  return out;
+}
+
+function dockMetrics(s, V, bay) {
+  var P = bodies(s, V).trailer, c = Math.cos(bay.phi), sn = Math.sin(bay.phi);
+  var loc = P.map(function (p) { var dx = p[0] - bay.B[0], dy = p[1] - bay.B[1]; return [dx * c + dy * sn, -dx * sn + dy * c]; });
+  var rearU = Math.max(loc[0][0], loc[3][0]);
+  var maxV = Math.max.apply(null, loc.map(function (q) { return Math.abs(q[1]); }));
+  var rcU = (loc[0][0] + loc[3][0]) / 2, rcV = (loc[0][1] + loc[3][1]) / 2;
+  var ang = wrap(s.t2 - bay.phi);
+  var okAng = Math.abs(ang) <= 6 * D2R;
+  var okGap = rearU <= 1.3;
+  var okLat = maxV <= bay.w / 2 + 0.02;
+  return { ang: ang, rcV: rcV, rcU: rcU, rearU: rearU, maxV: maxV, okAng: okAng, okGap: okGap, okLat: okLat, ok: okAng && okGap && okLat };
+}
+
+function previewPath(s, V, steer, dir, walls) {
+  var p = { x: s.x, y: s.y, t1: s.t1, t2: s.t2 }, pts = [], ds = 0.15;
+  for (var i = 0; i < 110; i++) {
+    advance(p, V, dir, steer, ds);
+    if (Math.abs(wrap(p.t1 - p.t2)) > V.jack) break;
+    if (blockedBy(bodies(p, V), walls)) break;
+    pts.push(rearCentre(p, V));
+  }
+  return pts;
+}
+/*CORE-END*/
+
+/* ---------- runtime ---------- */
+var $ = function (id) { return document.getElementById(id); };
+var canvas = $('yard'), ctx = canvas.getContext('2d');
+var C = {
+  tarmac: '#1d2228', slab: 'rgba(255,255,255,0.055)', building: '#2f363e', buildingEdge: '#59636f', kerb: '#56616c',
+  block: '#3a434c', paint: '#e9ecef', hivis: '#f6c500', cone: '#ff6b1f', coneBase: '#c94a10',
+  cab: '#3d7fd0', cabRoof: '#4b8fe2', trailer: '#dfe4ea', trailerEdge: '#a9b1ba', parked: '#79848f', tyre: '#0b0d0f', glass: '#101b27'
+};
+var SPEEDS = [1.1, 1.8, 3.0];
+var G = { veh: 'artic', lv: 0, speedIdx: 1, preview: true, trace: true, centre: true };
+var best = {};
+try { best = JSON.parse(localStorage.getItem('reverse-bay-stars') || '{}') || {}; } catch (e) { best = {}; }
+function saveBest() { try { localStorage.setItem('reverse-bay-stars', JSON.stringify(best)); } catch (e) {} }
+
+var V, L, s, v, steerN, steerT, status, clock, started, runTime, hits, pulls, gear, gearDist, pendingPull;
+var dockT, freeFor, trail, trailDist, bannerT, bannerText, bannerKind, flash, lastM, introGone;
+var keys = { left: false, right: false, up: false, down: false, brake: false };
+var pads = { fwd: false, rev: false }, dragSteer = false;
+var dpr = 1, k = 10, rotated = true;
+
+function stars(n) { return n ? '★'.repeat(n) + '☆'.repeat(3 - n) : '☆☆☆'; }
+function fmtTime(t) { var m = Math.floor(t / 60); var sec = (t % 60).toFixed(1); if (sec.length < 4) sec = '0' + sec; return m + ':' + sec; }
+function say(text, kind) { bannerText = text; bannerKind = kind || 'bad'; bannerT = 2.2; }
+
+function buildChips() {
+  var box = $('levels'); box.innerHTML = '';
+  LEVELS.forEach(function (lv, i) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'lv'; b.setAttribute('aria-current', i === G.lv ? 'true' : 'false');
+    var n = best[G.veh + ':' + i] || 0;
+    b.innerHTML = '<span class="n">' + (i + 1) + '</span><span class="nm">' + lv.name + '</span><span class="st">' + (lv.bay ? stars(n) : '') + '</span>';
+    b.addEventListener('click', function () { G.lv = i; closeSheet(); resetRun(); });
+    box.appendChild(b);
+  });
+  var cur = LEVELS[G.lv], cn = best[G.veh + ':' + G.lv] || 0;
+  $('lvname').innerHTML = '<span class="n">' + (G.lv + 1) + '</span><span class="nm">' + cur.name + '</span><span class="st">' + (cur.bay ? stars(cn) : '') + '</span>';
+  $('lvhelp').textContent = cur.brief;
+}
+
+function resetRun() {
+  V = VEHICLES[G.veh]; L = buildLevel(LEVELS[G.lv], V);
+  var st = LEVELS[G.lv].start;
+  s = { x: st[0], y: st[1], t1: st[2], t2: st[2] };
+  v = 0; steerN = 0; steerT = 0; status = 'driving'; clock = 0; started = false; runTime = 0;
+  hits = 0; pulls = 0; gear = 0; gearDist = 0; pendingPull = false; dockT = 0; freeFor = 1;
+  trail = []; trailDist = 0; bannerT = 0; flash = 0; lastM = null;
+  $('result').hidden = true; $('hudBay').hidden = !L.bay;
+  introGone = false; $('intro').hidden = false;
+  $('intro').innerHTML = '<b>' + LEVELS[G.lv].name + '</b><span>' + LEVELS[G.lv].brief + ' Drag the wheel and hold Forward or Reverse.</span>';
+  buildChips();
+}
+
+function complete() {
+  status = 'docked'; v = 0;
+  var par = LEVELS[G.lv].par;
+  var n = hits === 0 ? (pulls <= par ? 3 : 2) : 1;
+  var key = G.veh + ':' + G.lv;
+  if (n > (best[key] || 0)) { best[key] = n; saveBest(); }
+  $('rStars').textContent = stars(n);
+  $('rTime').textContent = fmtTime(runTime); $('rPulls').textContent = pulls; $('rHits').textContent = hits;
+  $('rNext').hidden = G.lv >= LEVELS.length - 1;
+  $('result').hidden = false;
+  buildChips();
+}
+
+
+
+/* ---------- simulation ---------- */
+function update(dt) {
+  clock += dt; freeFor += dt;
+  if (flash > 0) flash = Math.max(0, flash - dt * 2.5);
+  var ped = 0, vmax = SPEEDS[G.speedIdx];
+  if (status === 'docked') { v = 0; return; }
+  ped = ((keys.up || pads.fwd) ? 1 : 0) - ((keys.down || pads.rev) ? 1 : 0);
+
+  var dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+  if (dir) steerT = clamp(steerT + dir * 0.9 * dt, -1, 1);
+  else if (G.centre && !dragSteer) steerT += clamp(-steerT, -1.6 * dt, 1.6 * dt);
+  steerN += clamp(steerT - steerN, -2.2 * dt, 2.2 * dt);
+
+  var target = ped * vmax, accel = 3.2;
+  if (keys.brake) { target = 0; accel = 9; }
+  else if (ped === 0) accel = 3.6;
+  else if (v * ped < 0) accel = 7;
+  v += clamp(target - v, -accel * dt, accel * dt);
+
+  if (Math.abs(v) > 1e-4) {
+    var p = { x: s.x, y: s.y, t1: s.t1, t2: s.t2 };
+    advance(p, V, v, steerN * V.maxSteer, dt);
+    var hOld = Math.abs(wrap(s.t1 - s.t2)), hNew = Math.abs(wrap(p.t1 - p.t2));
+    if (hNew > V.jack && hNew > hOld) {
+      v = 0; say('Jackknife limit: pull forward to straighten', 'warn');
+    } else {
+      var b = bodies(p, V);
+      if (blockedBy(b, L.walls)) {
+        v = 0;
+        if (freeFor > 0.3) { hits++; flash = 1; buzz(40); say('Contact: back off', 'bad'); }
+        freeFor = 0;
+      } else {
+        var ds = Math.abs(v) * dt;
+        s = p; started = true;
+        if (Math.abs(v) > 0.12) {
+          var g = v > 0 ? 1 : -1;
+          if (g !== gear) { pendingPull = (gear === -1 && g === 1); gear = g; gearDist = 0; }
+          gearDist += ds;
+          if (pendingPull && gearDist >= 1) { pulls++; pendingPull = false; }
+        }
+        for (var i = 0; i < L.cones.length; i++) {
+          var cn = L.cones[i];
+          if (cn.down) continue;
+          if (polysOverlap(cn.poly, b.truck) || polysOverlap(cn.poly, b.trailer)) {
+            cn.down = true; hits++; buzz(25); cn.rot = Math.atan2(cn.y - s.y, cn.x - s.x) + (Math.random() - 0.5) * 0.9;
+            say('Cone down', 'warn');
+          }
+        }
+        trailDist += ds;
+        if (trailDist >= 0.25) {
+          trailDist = 0; trail.push(rearCentre(s, V));
+          if (trail.length > 600) trail.shift();
+        }
+      }
+    }
+  }
+  if (started) runTime += dt;
+
+  if (L.bay) {
+    lastM = dockMetrics(s, V, L.bay);
+    if (lastM.ok && Math.abs(v) < 0.05 && ped === 0) { dockT += dt; if (dockT >= 0.8) complete(); }
+    else dockT = 0;
+  }
+}
+
+
+
+/* ---------- drawing ---------- */
+function path(P) { ctx.beginPath(); for (var i = 0; i < P.length; i++) { if (i) ctx.lineTo(P[i][0], P[i][1]); else ctx.moveTo(P[i][0], P[i][1]); } ctx.closePath(); }
+function rr(x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r); ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r); ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r); ctx.closePath();
+}
+
+function drawGround() {
+  ctx.fillStyle = C.tarmac; ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+  ctx.strokeStyle = C.slab; ctx.lineWidth = 0.07; ctx.beginPath();
+  for (var x = 5; x < WORLD_W; x += 5) { ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_H); }
+  for (var y = 5; y < WORLD_H; y += 5) { ctx.moveTo(0, y); ctx.lineTo(WORLD_W, y); }
+  ctx.stroke();
+  var gr = ctx.createRadialGradient(30, 20, 14, 30, 20, 44);
+  gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,0.3)');
+  ctx.fillStyle = gr; ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+}
+
+
+
+function drawBayFloor() {
+  var bay = L.bay; if (!bay) return;
+  var done = status === 'docked', ready = lastM && lastM.ok;
+  path(bay.lr(0, bay.depth, -bay.w / 2, bay.w / 2));
+  ctx.fillStyle = done ? 'rgba(63,207,142,0.16)' : ready ? 'rgba(63,207,142,0.10)' : 'rgba(246,197,0,0.06)'; ctx.fill();
+  ctx.strokeStyle = C.hivis; ctx.lineWidth = 0.15; ctx.lineJoin = 'miter';
+  [-1, 1].forEach(function (sg) {
+    var a = bay.f(0, sg * bay.w / 2), b = bay.f(bay.depth, sg * bay.w / 2);
+    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+  });
+  var m1 = bay.f(bay.depth, -bay.w / 2), m2 = bay.f(bay.depth, bay.w / 2);
+  ctx.setLineDash([0.7, 0.5]); ctx.beginPath(); ctx.moveTo(m1[0], m1[1]); ctx.lineTo(m2[0], m2[1]); ctx.stroke(); ctx.setLineDash([]);
+  /* bay number: painted upright as seen on screen */
+  var pos = bay.f(bay.depth - 1.8, 0), rot;
+  if (rotated) rot = Math.PI / 2;
+  else { rot = wrap(bay.phi - Math.PI / 2); if (Math.abs(rot) > Math.PI / 2 + 0.01) rot += Math.PI; }
+  ctx.save(); ctx.translate(pos[0], pos[1]); ctx.rotate(rot);
+  ctx.fillStyle = 'rgba(233,236,239,0.5)'; ctx.font = '700 ' + (rotated ? 1.3 : 1.9) + 'px "Barlow Condensed", Arial, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('BAY ' + bay.num, 0, 0); ctx.restore();
+}
+
+function hatch(P, step, col) {
+  ctx.save(); path(P); ctx.clip();
+  ctx.strokeStyle = col; ctx.lineWidth = 0.1; ctx.beginPath();
+  for (var i = -WORLD_H; i < WORLD_W + WORLD_H; i += step) { ctx.moveTo(i, 0); ctx.lineTo(i + WORLD_H, WORLD_H); }
+  ctx.stroke(); ctx.restore();
+}
+
+function drawTrailerBox(x0, x1, hw, fill) {
+  rr(x0, -hw, x1 - x0, hw * 2, 0.18); ctx.fillStyle = fill; ctx.fill();
+  ctx.strokeStyle = C.trailerEdge; ctx.lineWidth = 0.07; ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,0.09)'; ctx.lineWidth = 0.06; ctx.beginPath();
+  for (var x = x0 + 1.0; x < x1 - 0.3; x += 1.1) { ctx.moveTo(x, -hw + 0.14); ctx.lineTo(x, hw - 0.14); }
+  ctx.moveTo(x0 + 0.5, 0); ctx.lineTo(x1 - 0.3, 0); ctx.stroke();
+}
+
+function drawStructures() {
+  var bay = L.bay;
+  L.solids.forEach(function (sd) {
+    if (sd.kind === 'building') {
+      path(sd.poly); ctx.fillStyle = C.building; ctx.fill(); hatch(sd.poly, 1.8, 'rgba(255,255,255,0.03)');
+    } else if (sd.kind === 'kerb') {
+      path(sd.poly); ctx.fillStyle = C.kerb; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 0.06; ctx.stroke();
+    } else if (sd.kind === 'block') {
+      path(sd.poly); ctx.fillStyle = C.block; ctx.fill(); hatch(sd.poly, 1.1, 'rgba(255,255,255,0.07)');
+      ctx.strokeStyle = C.hivis; ctx.lineWidth = 0.12; path(sd.poly); ctx.stroke();
+    }
+  });
+  if (bay) {
+    var a = bay.f(0, -90), b = bay.f(0, 90);
+    ctx.strokeStyle = C.buildingEdge; ctx.lineWidth = 0.2; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    L.doors.forEach(function (dv) {
+      path(bay.lr(-1.1, 0, dv - 1.4, dv + 1.4)); ctx.fillStyle = '#0e1114'; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 0.06; ctx.beginPath();
+      for (var j = 1; j < 5; j++) { var p = bay.f(-1.1, dv - 1.4 + j * 0.56), q = bay.f(0, dv - 1.4 + j * 0.56); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); }
+      ctx.stroke();
+      [-1, 1].forEach(function (sg) { path(bay.lr(-0.4, 0, dv + sg * 1.75 - 0.25, dv + sg * 1.75 + 0.25)); ctx.fillStyle = '#080a0c'; ctx.fill(); });
+    });
+    L.solids.forEach(function (sd) {
+      if (sd.kind !== 'parked') return;
+      var P = sd.poly, cx = (P[0][0] + P[2][0]) / 2, cy = (P[0][1] + P[2][1]) / 2;
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(bay.phi);
+      drawTrailerBox(-bay.len / 2, bay.len / 2, V.trW / 2, C.parked);
+      ctx.restore();
+    });
+  }
+}
+
+function drawCones() {
+  L.cones.forEach(function (c) {
+    ctx.save(); ctx.translate(c.x, c.y);
+    if (!c.down) {
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(-0.27 + 0.12, -0.27 + 0.16, 0.54, 0.54);
+      ctx.fillStyle = C.coneBase; ctx.fillRect(-0.3, -0.3, 0.6, 0.6);
+      ctx.fillStyle = C.cone; ctx.beginPath(); ctx.arc(0, 0, 0.26, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 0.07; ctx.beginPath(); ctx.arc(0, 0, 0.17, 0, 7); ctx.stroke();
+    } else {
+      ctx.rotate(c.rot); ctx.fillStyle = C.coneBase; ctx.fillRect(-0.5, -0.3, 0.12, 0.6);
+      ctx.fillStyle = C.cone; ctx.beginPath(); ctx.moveTo(-0.38, -0.27); ctx.lineTo(0.5, -0.07); ctx.lineTo(0.5, 0.07); ctx.lineTo(-0.38, 0.27); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.fillRect(0.0, -0.17, 0.12, 0.34);
+    }
+    ctx.restore();
+  });
+}
+
+function wheel(x, y, len, wid, rot) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot || 0);
+  ctx.fillStyle = C.tyre; ctx.fillRect(-len / 2, -wid / 2, len, wid);
+  ctx.fillStyle = '#2b3138'; ctx.fillRect(-len / 2 + 0.12, -wid / 2 + 0.06, len - 0.24, 0.07);
+  ctx.restore();
+}
+
+function drawTractor(sa) {
+  var hw = V.W / 2, front = V.Lw + V.fo, cabX = front - V.cab;
+  [-1, 1].forEach(function (sg) { wheel(0, sg * (hw - 0.05), 1.1, 0.42); wheel(V.Lw, sg * (hw - 0.05), 1.0, 0.4, sa); });
+  if (V.drawbar) {
+    rr(-V.ro, -hw, cabX + V.ro - 0.1, V.W, 0.12); ctx.fillStyle = '#d3d9df'; ctx.fill();
+    ctx.strokeStyle = C.trailerEdge; ctx.lineWidth = 0.07; ctx.stroke();
+    ctx.strokeStyle = 'rgba(0,0,0,0.09)'; ctx.lineWidth = 0.06; ctx.beginPath();
+    for (var x = -V.ro + 0.9; x < cabX - 0.4; x += 1.0) { ctx.moveTo(x, -hw + 0.14); ctx.lineTo(x, hw - 0.14); }
+    ctx.stroke();
+    ctx.strokeStyle = '#20262c'; ctx.lineWidth = 0.2; ctx.beginPath(); ctx.moveTo(-V.ro + 0.2, 0); ctx.lineTo(V.hx, 0); ctx.stroke();
+  } else {
+    rr(-V.ro, -(hw - 0.3), cabX + V.ro + 0.2, V.W - 0.6, 0.1); ctx.fillStyle = '#272d34'; ctx.fill();
+    ctx.strokeStyle = '#3a434d'; ctx.lineWidth = 0.08; ctx.beginPath(); ctx.moveTo(-V.ro + 0.2, -0.5); ctx.lineTo(cabX, -0.5); ctx.moveTo(-V.ro + 0.2, 0.5); ctx.lineTo(cabX, 0.5); ctx.stroke();
+  }
+  rr(cabX, -hw, V.cab, V.W, 0.35); ctx.fillStyle = C.cab; ctx.fill();
+  rr(cabX + 0.25, -hw + 0.28, V.cab - 0.55, V.W - 0.56, 0.2); ctx.fillStyle = C.cabRoof; ctx.fill();
+  ctx.fillStyle = C.glass; ctx.fillRect(front - 0.85, -hw + 0.24, 0.55, V.W - 0.48);
+  ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.fillRect(front - 0.82, -hw + 0.3, 0.07, V.W - 0.6);
+  ctx.fillStyle = '#ffe9a8'; [-1, 1].forEach(function (sg) { ctx.fillRect(front - 0.14, sg * (hw - 0.45) - 0.17, 0.12, 0.34); });
+  ctx.fillStyle = '#0d1115';
+  [-1, 1].forEach(function (sg) { ctx.fillRect(front - 1.2, sg > 0 ? hw - 0.02 : -hw - 0.2, 0.5, 0.22); });
+}
+
+function drawTrailerLocal() {
+  var hw = V.trW / 2;
+  if (V.drawbar) { ctx.strokeStyle = '#20262c'; ctx.lineWidth = 0.2; ctx.beginPath(); ctx.moveTo(V.trFront - 0.2, 0); ctx.lineTo(V.L2, 0); ctx.stroke(); }
+  [-0.65, 0.65].forEach(function (wx) { [-1, 1].forEach(function (sg) { wheel(wx, sg * (hw - 0.08), 1.0, 0.5); }); });
+  drawTrailerBox(-V.trRear, V.trFront, hw, C.trailer);
+  var n = Math.floor(V.trW / 0.32), sw = V.trW / n;
+  for (var i = 0; i < n; i++) { ctx.fillStyle = i % 2 ? '#f6c500' : '#d93a2b'; ctx.fillRect(-V.trRear, -hw + i * sw, 0.34, sw); }
+}
+
+function drawRig() {
+  var b = bodies(s, V), t = b.t;
+  ctx.fillStyle = 'rgba(0,0,0,0.34)';
+  [b.truck, b.trailer].forEach(function (P) { path(P.map(function (p) { return [p[0] + 0.28, p[1] + 0.4]; })); ctx.fill(); });
+  function tractor() { ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.t1); drawTractor(steerN * V.maxSteer); ctx.restore(); }
+  function trailerD() { ctx.save(); ctx.translate(t.ax, t.ay); ctx.rotate(s.t2); drawTrailerLocal(); ctx.restore(); }
+  if (V.drawbar) { trailerD(); tractor(); } else { tractor(); trailerD(); }
+  ctx.fillStyle = C.hivis; ctx.strokeStyle = '#17130a'; ctx.lineWidth = 0.07;
+  ctx.beginPath(); ctx.arc(t.hx, t.hy, 0.24, 0, 7); ctx.fill(); ctx.stroke();
+}
+
+function drawAids() {
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  if (G.trace && trail.length > 1) {
+    ctx.strokeStyle = 'rgba(246,197,0,0.6)'; ctx.lineWidth = 0.13; ctx.beginPath();
+    trail.forEach(function (p, i) { if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); });
+    var r = rearCentre(s, V); ctx.lineTo(r[0], r[1]); ctx.stroke();
+  }
+  if (G.preview && status === 'driving') {
+    var ped = ((keys.up || pads.fwd) ? 1 : 0) - ((keys.down || pads.rev) ? 1 : 0);
+    var dir = ped !== 0 ? ped : (gear === 1 ? 1 : -1);
+    var pts = previewPath(s, V, steerN * V.maxSteer, dir, L.walls);
+    if (pts.length > 1) {
+      var r0 = rearCentre(s, V);
+      ctx.strokeStyle = 'rgba(233,236,239,0.8)'; ctx.lineWidth = 0.12; ctx.setLineDash([0.28, 0.4]);
+      ctx.beginPath(); ctx.moveTo(r0[0], r0[1]); pts.forEach(function (p) { ctx.lineTo(p[0], p[1]); }); ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+}
+
+
+
+function drawScaleBar() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  var cssH = canvas.height / dpr, x = 3.5 * k, y = cssH - 4.6 * k, len = 5 * k, tk = 0.4 * k;
+  ctx.strokeStyle = C.paint; ctx.lineWidth = Math.max(1.5, 0.14 * k); ctx.lineCap = 'butt'; ctx.beginPath();
+  ctx.moveTo(x, y); ctx.lineTo(x + len, y); ctx.moveTo(x, y - tk); ctx.lineTo(x, y + tk); ctx.moveTo(x + len, y - tk); ctx.lineTo(x + len, y + tk); ctx.stroke();
+  ctx.fillStyle = C.paint; ctx.font = '600 ' + (1.15 * k) + 'px "Barlow Condensed", Arial, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('5 m', x, y + 0.5 * k);
+}
+
+function render() {
+  if (rotated) ctx.setTransform(0, -dpr * k, dpr * k, 0, 0, dpr * k * WORLD_W);
+  else ctx.setTransform(dpr * k, 0, 0, dpr * k, 0, 0);
+  drawGround(); drawBayFloor(); drawStructures(); drawAids(); drawCones(); drawRig();
+  if (flash > 0) { ctx.strokeStyle = 'rgba(255,90,79,' + flash.toFixed(2) + ')'; ctx.lineWidth = 0.7; ctx.strokeRect(0.35, 0.35, WORLD_W - 0.7, WORLD_H - 0.7); }
+  drawScaleBar();
+}
+
+/* ---------- HUD ---------- */
+function T(el, txt) { if (el._t !== txt) { el.textContent = txt; el._t = txt; } }
+function meter(el, val, range, zone) {
+  var f = clamp(val / range, -1, 1), bar = el.firstElementChild.nextElementSibling;
+  bar.style.left = (f < 0 ? 50 + f * 50 : 50) + '%'; bar.style.width = (Math.abs(f) * 50) + '%';
+  el.setAttribute('data-zone', zone);
+}
+var el = {
+  hitchVal: $('hitchVal'), hitchMeter: $('hitchMeter'), gearVal: $('gearVal'), speedVal: $('speedVal'),
+  sTime: $('sTime'), sPulls: $('sPulls'), sHits: $('sHits'), vAng: $('vAng'), vLat: $('vLat'), vGap: $('vGap'),
+  dAng: $('dAng'), dLat: $('dLat'), dGap: $('dGap'), luStatus: $('luStatus'), banner: $('banner'),
+  wheel: $('wheel'), knob: $('knob'), pedFwd: $('pedFwd'), pedRev: $('pedRev')
+};
+var KNOB_PAD = 26;
+
+function updateHud(realDt) {
+  var h = wrap(s.t1 - s.t2) / D2R, hr = Math.abs(h) / (V.jack / D2R);
+  T(el.hitchVal, Math.abs(h).toFixed(0) + '°' + (Math.abs(h) < 1 ? '' : h > 0 ? ' right' : ' left'));
+  meter(el.hitchMeter, h, V.jack / D2R, hr < 0.4 ? 'ok' : hr < 0.75 ? 'warn' : 'bad');
+  var ped = ((keys.up || pads.fwd) ? 1 : 0) - ((keys.down || pads.rev) ? 1 : 0);
+  var g = ped !== 0 ? (ped > 0 ? 'D' : 'R') : (v > 0.05 ? 'D' : v < -0.05 ? 'R' : 'N');
+  T(el.gearVal, g); T(el.speedVal, (Math.abs(v) * 3.6).toFixed(1) + ' km/h');
+  T(el.sTime, fmtTime(runTime)); T(el.sPulls, String(pulls)); T(el.sHits, String(hits));
+  el.pedFwd.classList.toggle('on', ped > 0); el.pedRev.classList.toggle('on', ped < 0);
+  el.knob.style.left = 'calc(' + KNOB_PAD + 'px + (100% - ' + (KNOB_PAD * 2) + 'px) * ' + ((steerT + 1) / 2).toFixed(3) + ')';
+
+  if (L.bay && lastM) {
+    var m = lastM;
+    T(el.vAng, Math.abs(m.ang / D2R).toFixed(1) + '°'); el.dAng.className = 'dot ' + (m.okAng ? 'ok' : 'bad');
+    T(el.vLat, Math.abs(m.rcV).toFixed(2) + ' m'); el.dLat.className = 'dot ' + (m.okLat ? 'ok' : 'bad');
+    T(el.vGap, Math.max(0, m.rearU).toFixed(1) + ' m'); el.dGap.className = 'dot ' + (m.okGap ? 'ok' : 'bad');
+    T(el.luStatus, status === 'docked' ? 'Docked' : m.ok ? (dockT > 0 ? 'Hold still…' : 'Stop and release') : 'Keep working it in');
+  } else if (!L.bay) T(el.luStatus, '');
+  if (bannerT > 0) {
+    bannerT -= realDt; el.banner.hidden = false; T(el.banner, bannerText); el.banner.className = 'banner ' + bannerKind;
+  } else if (!el.banner.hidden) el.banner.hidden = true;
+}
+
+/* ---------- loop ---------- */
+var last = performance.now(), acc = 0;
+function frame(now) {
+  var dt = (now - last) / 1000; last = now; if (dt > 0.1) dt = 0.1;
+  acc += dt;
+  var STEP = 1 / 120;
+  while (acc >= STEP) { update(STEP); acc -= STEP; }
+  render(); updateHud(dt);
+  requestAnimationFrame(frame);
+}
+
+/* ---------- layout ---------- */
+var app = $('app'), yardBox = $('yardBox'), CTRL_H = 128;
+function layout() {
+  var de = document.documentElement, cs = getComputedStyle(de);
+  var vw = de.clientWidth || window.innerWidth, vh = Math.max(window.innerHeight || 640, 420);
+  rotated = vh >= vw * 0.95;
+  app.setAttribute('data-layout', rotated ? 'portrait' : 'landscape');
+  var padV = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0) + 16;
+  var topH = $('top').offsetHeight + 10, availW = app.clientWidth, w;
+  if (rotated) w = Math.min(availW, (vh - padV - topH - CTRL_H - 12) / 1.5);
+  else w = Math.min(availW - 2 * 150 - 24, (vh - padV - topH) * 1.5);
+  w = Math.max(220, Math.floor(w));
+  yardBox.style.width = w + 'px';
+  var cssH = rotated ? w * 1.5 : w / 1.5;
+  dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  canvas.width = Math.round(w * dpr); canvas.height = Math.round(cssH * dpr);
+  k = rotated ? w / WORLD_H : w / WORLD_W;
+}
+
+/* ---------- input ---------- */
+var wl = null;
+function wake() {
+  try {
+    if (navigator.wakeLock && !wl) navigator.wakeLock.request('screen').then(function (l) { wl = l; l.addEventListener('release', function () { wl = null; }); }).catch(function () {});
+  } catch (e) {}
+}
+function buzz(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
+document.addEventListener('visibilitychange', function () { if (!document.hidden && introGone) wake(); });
+function hideIntro() { if (!introGone) { introGone = true; $('intro').hidden = true; } wake(); }
+
+var KEYMAP = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', Space: 'brake' };
+window.addEventListener('keydown', function (e) {
+  if (e.ctrlKey || e.metaKey || e.altKey || !$('sheet').hidden) return;
+  if (KEYMAP[e.code]) { keys[KEYMAP[e.code]] = true; hideIntro(); e.preventDefault(); }
+  else if (e.code === 'KeyC') { steerT = 0; e.preventDefault(); }
+  else if (e.code === 'KeyR') { resetRun(); e.preventDefault(); }
+}, true);
+window.addEventListener('keyup', function (e) { if (KEYMAP[e.code]) { keys[KEYMAP[e.code]] = false; e.preventDefault(); } }, true);
+window.addEventListener('blur', function () { keys.left = keys.right = keys.up = keys.down = keys.brake = false; pads.fwd = pads.rev = false; dragSteer = false; });
+
+function holdButton(btn, name) {
+  btn.addEventListener('pointerdown', function (e) { pads[name] = true; hideIntro(); try { btn.setPointerCapture(e.pointerId); } catch (x) {} e.preventDefault(); });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(function (ev) { btn.addEventListener(ev, function () { pads[name] = false; }); });
+  btn.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+}
+holdButton(el.pedFwd, 'fwd'); holdButton(el.pedRev, 'rev');
+
+function wheelSet(e) {
+  var r = el.wheel.getBoundingClientRect(), span = r.width - 2 * KNOB_PAD;
+  steerT = clamp(((e.clientX - r.left - KNOB_PAD) / span) * 2 - 1, -1, 1);
+}
+el.wheel.addEventListener('pointerdown', function (e) {
+  dragSteer = true; hideIntro(); try { el.wheel.setPointerCapture(e.pointerId); } catch (x) {} wheelSet(e); e.preventDefault();
+});
+el.wheel.addEventListener('pointermove', function (e) { if (dragSteer) wheelSet(e); });
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach(function (ev) { el.wheel.addEventListener(ev, function () { dragSteer = false; }); });
+el.wheel.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+function openSheet() { $('sheet').hidden = false; pads.fwd = pads.rev = false; dragSteer = false; }
+function closeSheet() { $('sheet').hidden = true; }
+$('open').addEventListener('click', openSheet);
+$('lvname').addEventListener('click', openSheet);
+$('close').addEventListener('click', closeSheet);
+$('prev').addEventListener('click', function () { G.lv = (G.lv + LEVELS.length - 1) % LEVELS.length; resetRun(); });
+$('next').addEventListener('click', function () { G.lv = (G.lv + 1) % LEVELS.length; resetRun(); });
+$('restart').addEventListener('click', function () { resetRun(); });
+$('rAgain').addEventListener('click', function () { resetRun(); });
+$('rNext').addEventListener('click', function () { if (G.lv < LEVELS.length - 1) G.lv++; resetRun(); });
+
+function seg(id, attr, fn) {
+  var box = $(id);
+  box.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    Array.prototype.forEach.call(box.children, function (c) { c.setAttribute('aria-pressed', c === b ? 'true' : 'false'); });
+    fn(b.getAttribute(attr));
+  });
+}
+seg('segVeh', 'data-v', function (val) { G.veh = val; resetRun(); });
+seg('segSpd', 'data-s', function (val) { G.speedIdx = parseInt(val, 10); });
+$('optPreview').addEventListener('change', function (e) { G.preview = e.target.checked; });
+$('optTrace').addEventListener('change', function (e) { G.trace = e.target.checked; });
+$('optCentre').addEventListener('change', function (e) { G.centre = e.target.checked; });
+
+if (window.ResizeObserver) new ResizeObserver(layout).observe(app);
+window.addEventListener('resize', layout);
+window.addEventListener('orientationchange', function () { setTimeout(layout, 120); });
+layout(); resetRun(); layout();
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body></html>
