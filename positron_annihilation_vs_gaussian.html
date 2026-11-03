@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Positron annihilation sites vs Gaussian random walk</title>
+<!-- code generated for D. Gallichan by Claude, date: 03/11/26 -->
+<style>
+:root{
+  --bg:#f6f6f4; --card:#ffffff; --fg:#1d1d1b; --muted:#6a6a66; --grid:#e2e2de; --border:#d6d6d0;
+  --pos:#e8590c; --gau:#1971c2; --accent:#1971c2;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#16161a; --card:#202026; --fg:#ececea; --muted:#9a9a96; --grid:#34343c; --border:#3a3a42;
+         --pos:#ff922b; --gau:#74c0fc; --accent:#74c0fc; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1120px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:17px;margin:28px 0 8px}
+p.sub{margin:0 0 16px;color:var(--muted)}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px 18px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px}
+.controls label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:3px}
+.controls select,.controls input[type=number]{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit}
+.controls input[type=range]{width:100%}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+button{font:inherit;padding:6px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--fg);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.val{font-variant-numeric:tabular-nums;color:var(--fg)}
+.status{margin:10px 2px;color:var(--muted);font-size:13px;min-height:20px}
+.fig{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:760px){.grid2{grid-template-columns:1fr}}
+.panel h3{font-size:14px;margin:0 0 6px;font-weight:600}
+canvas{width:100%;height:auto;display:block;border-radius:6px}
+.cap{font-size:13px;color:var(--muted);margin:10px 0 0}
+.readout{font-size:12.5px;color:var(--muted);min-height:18px;margin-top:6px;font-variant-numeric:tabular-nums}
+.figtools{display:flex;justify-content:flex-end;margin-top:8px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{padding:5px 10px;text-align:right;border-bottom:1px solid var(--grid)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600}
+.pos{color:var(--pos)} .gau{color:var(--gau)}
+.notes{font-size:13px;color:var(--muted)}
+.notes li{margin:4px 0}
+.inline{display:flex;gap:14px;flex-wrap:wrap}
+.inline label{display:flex;gap:5px;align-items:center;color:var(--fg);font-size:13.5px;margin:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Positron annihilation sites vs a Gaussian random walk</h1>
+  <p class="sub">Monte Carlo of positrons from a point source in a uniform medium (continuous slowing-down + multiple scattering), compared with a 2D Gaussian of matched width.</p>
+
+  <div class="controls">
+    <div>
+      <label for="iso">Positron emitter</label>
+      <select id="iso">
+        <option value="F-18" selected>¹⁸F (Eₘₐₓ 0.634 MeV)</option>
+        <option value="C-11">¹¹C (Eₘₐₓ 0.960 MeV)</option>
+        <option value="N-13">¹³N (Eₘₐₓ 1.199 MeV)</option>
+        <option value="O-15">¹⁵O (Eₘₐₓ 1.732 MeV)</option>
+        <option value="Ga-68">⁶⁸Ga (Eₘₐₓ 1.899 MeV)</option>
+        <option value="Rb-82">⁸²Rb (Eₘₐₓ 3.378 MeV)</option>
+      </select>
+    </div>
+    <div>
+      <label for="n">Number of positrons</label>
+      <select id="n">
+        <option>10000</option><option>25000</option><option selected>50000</option><option>100000</option><option>200000</option>
+      </select>
+    </div>
+    <div>
+      <label for="dens">Medium density: <span class="val" id="densv">1.00</span> g/cm³</label>
+      <input type="range" id="dens" min="0.1" max="2" step="0.01" value="1">
+      <div class="row" style="margin-top:4px">
+        <button type="button" data-d="1.0">Water</button>
+        <button type="button" data-d="0.3">Lung</button>
+        <button type="button" data-d="1.85">Bone</button>
+      </div>
+    </div>
+    <div>
+      <label for="seed">Random seed</label>
+      <div class="row"><input type="number" id="seed" value="1" style="width:90px"><button class="primary" id="rerun" type="button">Re-run</button></div>
+    </div>
+    <div>
+      <label for="match">Gaussian width matched to positron…</label>
+      <select id="match">
+        <option value="rms" selected>RMS radius (same second moment)</option>
+        <option value="fwhm">FWHM of 1D profile</option>
+        <option value="r50">Median radius</option>
+      </select>
+    </div>
+    <div>
+      <label for="zoom">Field of view: <span class="val" id="fovv"></span></label>
+      <input type="range" id="zoom" min="0.1" max="1.5" step="0.05" value="0.6">
+    </div>
+    <div>
+      <label>Figure 1 colour scale</label>
+      <div class="inline">
+        <label><input type="radio" name="cs" value="lin" checked> Linear</label>
+        <label><input type="radio" name="cs" value="log"> Log</label>
+      </div>
+    </div>
+    <div>
+      <label>Figure 2a y-axis</label>
+      <div class="inline">
+        <label><input type="radio" name="ys" value="log" checked> Log</label>
+        <label><input type="radio" name="ys" value="lin"> Linear</label>
+      </div>
+    </div>
+  </div>
+  <div class="status" id="status"></div>
+
+  <h2>Figure 1 — 2D distribution of annihilation sites</h2>
+  <div class="fig" id="fig1">
+    <div class="grid2">
+      <div class="panel"><h3 id="t1a">(a)</h3><canvas id="mapP"></canvas></div>
+      <div class="panel"><h3 id="t1b">(b)</h3><canvas id="mapG"></canvas></div>
+    </div>
+    <div class="readout" id="readout">Hover over a map to read off the bin counts.</div>
+    <p class="cap">Projection onto the x–y plane of the annihilation positions for a point source at the origin. Both panels use the same number of events, field of view and colour scale. The positron distribution is sharply cusped with long tails; the matched Gaussian is much flatter-topped and has almost no tail.</p>
+    <div class="figtools"><button type="button" data-save="fig1">Save Figure 1 (PNG)</button></div>
+  </div>
+
+  <h2>Figure 2 — Radial profile and encircled fraction</h2>
+  <div class="fig" id="fig2">
+    <div class="grid2">
+      <div class="panel"><h3>(a) Radial probability density</h3><canvas id="radial"></canvas></div>
+      <div class="panel"><h3>(b) Fraction of annihilations within radius r</h3><canvas id="cum"></canvas></div>
+    </div>
+    <p class="cap">Solid lines with markers: Monte Carlo samples. Dashed: analytic 2D Gaussian with the matched σ. (a) is the probability per unit area, so ∫ρ 2πr dr = 1.</p>
+    <div class="figtools"><button type="button" data-save="fig2">Save Figure 2 (PNG)</button></div>
+  </div>
+
+  <h2>Summary statistics</h2>
+  <div class="fig"><div id="stats"></div></div>
+
+  <h2>Model and caveats</h2>
+  <ul class="notes">
+    <li>Kinetic energy is drawn from an allowed β⁺ spectrum with a Fermi-function correction (single branch, Eₘₐₓ only; the real ⁶⁸Ga and ⁸²Rb spectra have additional branches).</li>
+    <li>Each positron loses energy along the Katz–Penfold CSDA range–energy relation for water (fit valid 0.01–2.5 MeV; extrapolated for ⁸²Rb), with direction changes from a Highland-type multiple-scattering angle at every step. It annihilates at rest when its energy falls below 1 keV; in-flight annihilation, non-collinearity and positronium formation are ignored.</li>
+    <li>Density only rescales distances (range ∝ 1/ρ), which ignores differences in Z/A between tissues.</li>
+    <li>"Gaussian random walk" here means a 2D isotropic Gaussian centred on the source, with σ per axis chosen by the matching option. This is a quick physical model, not a substitute for a full Geant4/GATE or PeneloPET simulation.</li>
+  </ul>
+</div>
+
+<script>
+// code generated for D. Gallichan by Claude, date: 03/11/26
+"use strict";
+const $ = id => document.getElementById(id);
+const ME = 0.511;      // electron rest energy, MeV
+const X0 = 360.8;      // radiation length of water, mm
+const ALPHA = 1/137.036;
+
+const ISOTOPES = {
+  'F-18':{emax:0.634,Z:8,name:'¹⁸F'},
+  'C-11':{emax:0.960,Z:5,name:'¹¹C'},
+  'N-13':{emax:1.199,Z:6,name:'¹³N'},
+  'O-15':{emax:1.732,Z:7,name:'¹⁵O'},
+  'Ga-68':{emax:1.899,Z:30,name:'⁶⁸Ga'},
+  'Rb-82':{emax:3.378,Z:36,name:'⁸²Rb'}
+};
+
+/* ---------- random numbers ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+function makeGauss(rng){
+  let spare=null;
+  return function(){
+    if(spare!==null){const s=spare;spare=null;return s;}
+    let u=rng();while(u<1e-12)u=rng();
+    const v=rng(), r=Math.sqrt(-2*Math.log(u));
+    spare=r*Math.sin(2*Math.PI*v);
+    return r*Math.cos(2*Math.PI*v);
+  };
+}
+
+/* ---------- physics ---------- */
+function Rmm(T){ // CSDA range of electrons in water, mm (Katz-Penfold)
+  if(T<=0) return 0;
+  const l=Math.log(T);
+  return 10*0.412*Math.exp((1.265-0.0954*l)*l);
+}
+function pcb(T){ return (T*T+2*T*ME)/(T+ME); } // p*c*beta, MeV
+
+function buildSampler(iso){
+  const n=2000, cdf=new Float64Array(n);
+  let acc=0;
+  for(let i=0;i<n;i++){
+    const T=iso.emax*(i+0.5)/n, E=T+ME, p=Math.sqrt(T*T+2*T*ME), b=p/E;
+    const x=2*Math.PI*iso.Z*ALPHA/b;
+    const F=x/(Math.exp(x)-1);
+    const w=p*E*Math.pow(iso.emax-T,2)*F;
+    acc+=w; cdf[i]=acc;
+  }
+  for(let i=0;i<n;i++) cdf[i]/=acc;
+  return function(u){
+    let lo=0,hi=n-1;
+    while(lo<hi){const m=(lo+hi)>>1; if(cdf[m]>=u) hi=m; else lo=m+1;}
+    const c0=lo>0?cdf[lo-1]:0, c1=cdf[lo];
+    const f=c1>c0?(u-c0)/(c1-c0):0.5;
+    return iso.emax*(lo+f)/n;
+  };
+}
+
+let ox=0, oy=0;
+function simulateOne(sampleT,rng,gauss){
+  let T=sampleT(rng());
+  let x=0,y=0,z=0;
+  const cz=2*rng()-1, ph=2*Math.PI*rng(), s=Math.sqrt(1-cz*cz);
+  let dx=s*Math.cos(ph), dy=s*Math.sin(ph), dz=cz;
+  while(T>0.001){
+    const dE=Math.max(0.06*T,0.0005);
+    let Tn=T-dE; if(Tn<0.001) Tn=0;
+    const ds=Rmm(T)-Rmm(Tn);
+    x+=dx*ds; y+=dy*ds; z+=dz*ds;
+    const th0=Math.min(1.5,13.6/pcb(T)*Math.sqrt(ds/X0));
+    // orthonormal frame perpendicular to direction
+    let ax,ay,az;
+    if(Math.abs(dz)<0.9){ ax=dy; ay=-dx; az=0; } else { ax=0; ay=dz; az=-dy; }
+    let an=Math.sqrt(ax*ax+ay*ay+az*az); ax/=an; ay/=an; az/=an;
+    const bx=dy*az-dz*ay, by=dz*ax-dx*az, bz=dx*ay-dy*ax;
+    const g1=gauss()*th0, g2=gauss()*th0;
+    dx+=g1*ax+g2*bx; dy+=g1*ay+g2*by; dz+=g1*az+g2*bz;
+    const dn=Math.sqrt(dx*dx+dy*dy+dz*dz); dx/=dn; dy/=dn; dz/=dn;
+    T=Tn;
+  }
+  ox=x; oy=y;
+}
+
+/* ---------- statistics ---------- */
+function computeStats(xs,ys,N){
+  const r=new Float32Array(N); let s2=0;
+  for(let i=0;i<N;i++){const q=xs[i]*xs[i]+ys[i]*ys[i]; r[i]=Math.sqrt(q); s2+=q;}
+  r.sort();
+  const q=f=>r[Math.min(N-1,Math.floor(f*N))];
+  const out={r,rms:Math.sqrt(s2/N),r50:q(0.5),r90:q(0.9),r99:q(0.99),rmax:r[N-1]};
+  // 1D projected profile (x and y pooled) for FWHM / FWTM
+  const L=out.r99, nb=300, bw=2*L/nb;
+  let h=new Float64Array(nb);
+  for(let i=0;i<N;i++){
+    let b=Math.floor((xs[i]+L)/bw); if(b>=0&&b<nb) h[b]++;
+    b=Math.floor((ys[i]+L)/bw); if(b>=0&&b<nb) h[b]++;
+  }
+  for(let p=0;p<3;p++){
+    const g=new Float64Array(nb);
+    for(let i=0;i<nb;i++){
+      const a=h[Math.max(0,i-1)], c=h[i], d=h[Math.min(nb-1,i+1)];
+      g[i]=(a+2*c+d)/4;
+    }
+    h=g;
+  }
+  let pk=0; for(let i=1;i<nb;i++) if(h[i]>h[pk]) pk=i;
+  const cen=j=>-L+(j+0.5)*bw;
+  function width(frac){
+    const lev=h[pk]*frac;
+    let i=pk; while(i>0&&h[i]>=lev) i--;
+    let xl=cen(i); if(h[i+1]!==h[i]) xl=cen(i)+(lev-h[i])/(h[i+1]-h[i])*bw;
+    let k=pk; while(k<nb-1&&h[k]>=lev) k++;
+    let xr=cen(k); if(h[k-1]!==h[k]) xr=cen(k)-(lev-h[k])/(h[k-1]-h[k])*bw;
+    return xr-xl;
+  }
+  out.fwhm=width(0.5); out.fwtm=width(0.1);
+  return out;
+}
+
+/* ---------- state ---------- */
+let state=null, runToken=0, geom=null, grids=null;
+
+async function runSim(){
+  const token=++runToken;
+  const iso=ISOTOPES[$('iso').value];
+  const N=+$('n').value, seed=(+$('seed').value)|0;
+  const rng=mulberry32(seed), gauss=makeGauss(rng);
+  const sampleT=buildSampler(iso);
+  const X=new Float32Array(N), Y=new Float32Array(N);
+  let i=0;
+  const t0=performance.now();
+  while(i<N){
+    const end=Math.min(N,i+3000);
+    for(;i<end;i++){ simulateOne(sampleT,rng,gauss); X[i]=ox; Y[i]=oy; }
+    $('status').textContent='Simulating positrons… '+Math.round(100*i/N)+'%';
+    await new Promise(r=>setTimeout(r,0));
+    if(token!==runToken) return;
+  }
+  const g2=makeGauss(mulberry32(seed+7919));
+  const ZX=new Float32Array(N), ZY=new Float32Array(N);
+  for(let k=0;k<N;k++){ ZX[k]=g2(); ZY[k]=g2(); }
+  state={X0:X,Y0:Y,ZX,ZY,N,iso,isoKey:$('iso').value};
+  $('status').textContent='Simulated '+N.toLocaleString('en-GB')+' positrons ('+((performance.now()-t0)/1000).toFixed(1)+' s).';
+  render();
+}
+
+/* ---------- drawing helpers ---------- */
+function col(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
+function setupCanvas(c,w,h){
+  const dpr=window.devicePixelRatio||1;
+  c.width=Math.round(w*dpr); c.height=Math.round(h*dpr);
+  c.style.aspectRatio=w+' / '+h;
+  const ctx=c.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  return ctx;
+}
+function niceTicks(lo,hi,n){
+  n=n||6;
+  const span=hi-lo, raw=span/n, p=Math.pow(10,Math.floor(Math.log10(raw))), f=raw/p;
+  const step=(f<1.5?1:f<3?2:f<7?5:10)*p, t=[];
+  for(let v=Math.ceil(lo/step-1e-9)*step; v<=hi+1e-9*span; v+=step) t.push(+v.toFixed(12));
+  return t;
+}
+function fmt(v){ if(v===0) return '0'; const a=Math.abs(v); if(a>=1e4||a<1e-3) return v.toExponential(0).replace('e+','e'); return parseFloat(v.toPrecision(3)).toString(); }
+function sig3(v){ return isFinite(v)?parseFloat(v.toPrecision(3)).toString():'–'; }
+
+const STOPS=['#440154','#482878','#3e4989','#31688e','#26828e','#1f9e89','#35b779','#6ece58','#b5de2b','#fde725'];
+const LUT=(function(){
+  const rgb=STOPS.map(h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]);
+  const out=[];
+  for(let i=0;i<256;i++){
+    const t=i/255*(rgb.length-1), k=Math.min(rgb.length-2,Math.floor(t)), f=t-k;
+    out.push([0,1,2].map(c=>Math.round(rgb[k][c]*(1-f)+rgb[k+1][c]*f)));
+  }
+  return out;
+})();
+
+function hist2d(xs,ys,N,fov,G){
+  const g=new Float32Array(G*G), s=G/(2*fov);
+  for(let i=0;i<N;i++){
+    const ix=Math.floor((xs[i]+fov)*s), iy=Math.floor((ys[i]+fov)*s);
+    if(ix>=0&&ix<G&&iy>=0&&iy<G) g[iy*G+ix]++;
+  }
+  return g;
+}
+
+const MAPW=460, MAPH=430, MX0=48, MY0=14, MSIZE=364;
+function drawMap(canvas,grid,G,vmax,fov,logScale){
+  const ctx=setupCanvas(canvas,MAPW,MAPH);
+  const fg=col('--fg'), card=col('--card');
+  ctx.fillStyle=card; ctx.fillRect(0,0,MAPW,MAPH);
+  const off=document.createElement('canvas'); off.width=G; off.height=G;
+  const octx=off.getContext('2d'), img=octx.createImageData(G,G);
+  const denom=logScale?Math.log(1+vmax):vmax;
+  for(let iy=0;iy<G;iy++){
+    for(let ix=0;ix<G;ix++){
+      const c=grid[iy*G+ix];
+      const t=denom>0?(logScale?Math.log(1+c):c)/denom:0;
+      const rgb=LUT[Math.max(0,Math.min(255,Math.round(t*255)))];
+      const p=((G-1-iy)*G+ix)*4;
+      img.data[p]=rgb[0]; img.data[p+1]=rgb[1]; img.data[p+2]=rgb[2]; img.data[p+3]=255;
+    }
+  }
+  octx.putImageData(img,0,0);
+  ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(off,MX0,MY0,MSIZE,MSIZE);
+  ctx.strokeStyle=fg; ctx.lineWidth=1; ctx.strokeRect(MX0,MY0,MSIZE,MSIZE);
+  // axes ticks
+  ctx.fillStyle=fg; ctx.font='11px system-ui,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  const ticks=niceTicks(-fov,fov,6);
+  for(const v of ticks){
+    const px=MX0+(v+fov)/(2*fov)*MSIZE;
+    ctx.beginPath(); ctx.moveTo(px,MY0+MSIZE); ctx.lineTo(px,MY0+MSIZE+4); ctx.stroke();
+    ctx.fillText(fmt(v),px,MY0+MSIZE+6);
+  }
+  ctx.textAlign='right'; ctx.textBaseline='middle';
+  for(const v of ticks){
+    const py=MY0+(1-(v+fov)/(2*fov))*MSIZE;
+    ctx.beginPath(); ctx.moveTo(MX0-4,py); ctx.lineTo(MX0,py); ctx.stroke();
+    ctx.fillText(fmt(v),MX0-7,py);
+  }
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('x (mm)',MX0+MSIZE/2,MY0+MSIZE+24);
+  ctx.save(); ctx.translate(11,MY0+MSIZE/2); ctx.rotate(-Math.PI/2); ctx.textBaseline='top'; ctx.fillText('y (mm)',0,0); ctx.restore();
+  // colour bar
+  const cx=MX0+MSIZE+12, cw=10;
+  for(let k=0;k<MSIZE;k++){
+    const rgb=LUT[Math.round((1-k/(MSIZE-1))*255)];
+    ctx.fillStyle='rgb('+rgb[0]+','+rgb[1]+','+rgb[2]+')';
+    ctx.fillRect(cx,MY0+k,cw,1.5);
+  }
+  ctx.strokeStyle=fg; ctx.strokeRect(cx,MY0,cw,MSIZE);
+  ctx.fillStyle=fg; ctx.textAlign='left'; ctx.textBaseline='middle';
+  let cticks;
+  if(logScale){ cticks=[]; for(let v=1;v<=vmax;v*=10) cticks.push(v); }
+  else cticks=niceTicks(0,vmax,5);
+  for(const v of cticks){
+    const t=logScale?Math.log(1+v)/denom:v/denom;
+    const py=MY0+(1-t)*MSIZE;
+    ctx.fillText(fmt(v),cx+cw+3,py);
+  }
+  ctx.save(); ctx.translate(MAPW-6,MY0+MSIZE/2); ctx.rotate(Math.PI/2); ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText('counts / bin',0,0); ctx.restore();
+}
+
+function drawChart(canvas,o){
+  const W=560,H=380;
+  const ctx=setupCanvas(canvas,W,H);
+  const m={l:66,r:16,t:14,b:46}, pw=W-m.l-m.r, ph=H-m.t-m.b;
+  const fg=col('--fg'), gridc=col('--grid'), card=col('--card');
+  ctx.fillStyle=card; ctx.fillRect(0,0,W,H);
+  const ly=v=>Math.log10(v);
+  const ty=o.logy?(v=>(ly(v)-ly(o.ymin))/(ly(o.ymax)-ly(o.ymin))):(v=>(v-o.ymin)/(o.ymax-o.ymin));
+  const px=v=>m.l+v/o.xmax*pw, py=v=>m.t+ph*(1-ty(v));
+  ctx.font='11px system-ui,sans-serif'; ctx.lineWidth=1;
+  // grid + ticks
+  ctx.strokeStyle=gridc; ctx.fillStyle=fg;
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  for(const v of niceTicks(0,o.xmax,6)){
+    ctx.beginPath(); ctx.moveTo(px(v),m.t); ctx.lineTo(px(v),m.t+ph); ctx.stroke();
+    ctx.fillText(fmt(v),px(v),m.t+ph+6);
+  }
+  ctx.textAlign='right'; ctx.textBaseline='middle';
+  if(o.logy){
+    for(let k=Math.ceil(ly(o.ymin)-1e-9);k<=Math.floor(ly(o.ymax)+1e-9);k++){
+      const v=Math.pow(10,k);
+      ctx.beginPath(); ctx.moveTo(m.l,py(v)); ctx.lineTo(m.l+pw,py(v)); ctx.stroke();
+      ctx.fillText('1e'+k,m.l-6,py(v));
+    }
+  } else {
+    for(const v of niceTicks(o.ymin,o.ymax,6)){
+      ctx.beginPath(); ctx.moveTo(m.l,py(v)); ctx.lineTo(m.l+pw,py(v)); ctx.stroke();
+      ctx.fillText(fmt(v),m.l-6,py(v));
+    }
+  }
+  ctx.strokeStyle=fg; ctx.strokeRect(m.l,m.t,pw,ph);
+  ctx.fillStyle=fg; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText(o.xlab,m.l+pw/2,H-18);
+  ctx.save(); ctx.translate(13,m.t+ph/2); ctx.rotate(-Math.PI/2); ctx.textBaseline='top'; ctx.fillText(o.ylab,0,0); ctx.restore();
+  // series
+  ctx.save(); ctx.beginPath(); ctx.rect(m.l,m.t,pw,ph); ctx.clip();
+  for(const h of (o.hlines||[])){
+    ctx.strokeStyle=gridc; ctx.setLineDash([2,3]); ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.moveTo(m.l,py(h)); ctx.lineTo(m.l+pw,py(h)); ctx.stroke();
+  }
+  for(const s of o.series){
+    ctx.strokeStyle=s.color; ctx.fillStyle=s.color; ctx.lineWidth=s.dash?1.6:1.8;
+    ctx.setLineDash(s.dash?[6,4]:[]);
+    ctx.beginPath(); let pen=false;
+    for(let i=0;i<s.x.length;i++){
+      const y=s.y[i];
+      if(o.logy&&!(y>0)){pen=false;continue;}
+      const X=px(s.x[i]), Y=py(y);
+      if(!pen){ctx.moveTo(X,Y);pen=true;} else ctx.lineTo(X,Y);
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+    if(s.marker){
+      for(let i=0;i<s.x.length;i++){
+        const y=s.y[i]; if(o.logy&&!(y>0)) continue;
+        ctx.beginPath(); ctx.arc(px(s.x[i]),py(y),2.3,0,6.2832); ctx.fill();
+      }
+    }
+  }
+  ctx.restore();
+  // legend
+  ctx.font='12px system-ui,sans-serif';
+  let ly0=m.t+10, lw=0;
+  for(const s of o.series) lw=Math.max(lw,ctx.measureText(s.label).width);
+  const bx=o.legendLeft?m.l+8:m.l+pw-lw-52, bh=o.series.length*18+8;
+  ctx.fillStyle=card; ctx.globalAlpha=0.85; ctx.fillRect(bx,m.t+6,lw+46,bh); ctx.globalAlpha=1;
+  ctx.textAlign='left'; ctx.textBaseline='middle';
+  for(const s of o.series){
+    ctx.strokeStyle=s.color; ctx.lineWidth=2; ctx.setLineDash(s.dash?[5,3]:[]);
+    ctx.beginPath(); ctx.moveTo(bx+6,ly0+6); ctx.lineTo(bx+28,ly0+6); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle=fg; ctx.fillText(s.label,bx+34,ly0+6);
+    ly0+=18;
+  }
+}
+
+/* ---------- render ---------- */
+function upperBound(a,v){ let lo=0,hi=a.length; while(lo<hi){const m=(lo+hi)>>1; if(a[m]<=v) lo=m+1; else hi=m;} return lo; }
+
+function render(){
+  if(!state) return;
+  const {N,ZX,ZY,iso}=state;
+  const dens=+$('dens').value; $('densv').textContent=dens.toFixed(2);
+  const sc=1/dens;
+  const X=new Float32Array(N), Y=new Float32Array(N);
+  for(let i=0;i<N;i++){ X[i]=state.X0[i]*sc; Y[i]=state.Y0[i]*sc; }
+  const P=computeStats(X,Y,N);
+  const mode=$('match').value;
+  const sigma = mode==='rms'?P.rms/Math.SQRT2 : mode==='fwhm'?P.fwhm/2.35482 : P.r50/1.17741;
+  const GX=new Float32Array(N), GY=new Float32Array(N);
+  for(let i=0;i<N;i++){ GX[i]=ZX[i]*sigma; GY[i]=ZY[i]*sigma; }
+  const Gs=computeStats(GX,GY,N);
+
+  const zoom=+$('zoom').value;
+  const fov=P.r99*1.05*zoom;
+  $('fovv').textContent='±'+sig3(fov)+' mm';
+  const G=160;
+  const gp=hist2d(X,Y,N,fov,G), gg=hist2d(GX,GY,N,fov,G);
+  let vmax=1; for(let i=0;i<G*G;i++){ if(gp[i]>vmax) vmax=gp[i]; if(gg[i]>vmax) vmax=gg[i]; }
+  const logScale=document.querySelector('input[name=cs]:checked').value==='log';
+  drawMap($('mapP'),gp,G,vmax,fov,logScale);
+  drawMap($('mapG'),gg,G,vmax,fov,logScale);
+  grids={gp,gg,G,fov};
+  $('t1a').textContent='(a) '+iso.name+' positron annihilation sites ('+dens.toFixed(2)+' g/cm³ medium)';
+  $('t1b').textContent='(b) Gaussian random walk, σ = '+sig3(sigma)+' mm per axis';
+
+  // Figure 2a: radial density
+  const nb=60, rc=[], dP=[], dG=[], dA=[];
+  const edges=new Float64Array(nb+1); for(let i=0;i<=nb;i++) edges[i]=fov*i/nb;
+  function radial(r){
+    const out=new Array(nb);
+    let prev=0;
+    for(let i=0;i<nb;i++){
+      const hi=upperBound(r,edges[i+1]);
+      const c=hi-prev; prev=hi;
+      out[i]=c/(N*Math.PI*(edges[i+1]*edges[i+1]-edges[i]*edges[i]));
+    }
+    return out;
+  }
+  const rp=radial(P.r), rg=radial(Gs.r);
+  for(let i=0;i<nb;i++){
+    const rm=0.5*(edges[i]+edges[i+1]); rc.push(rm); dP.push(rp[i]); dG.push(rg[i]);
+    dA.push(Math.exp(-rm*rm/(2*sigma*sigma))/(2*Math.PI*sigma*sigma));
+  }
+  const logy=document.querySelector('input[name=ys]:checked').value==='log';
+  let ymax=Math.max(...dP,...dG,...dA), ymin;
+  if(logy){
+    let mp=Infinity; for(const v of dP.concat(dG)) if(v>0&&v<mp) mp=v;
+    ymax=Math.pow(10,Math.ceil(Math.log10(ymax)));
+    ymin=Math.max(Math.pow(10,Math.floor(Math.log10(mp))),ymax*1e-7);
+  } else { ymin=0; ymax*=1.05; }
+  const cp=col('--pos'), cg=col('--gau');
+  drawChart($('radial'),{xlab:'radius r (mm)',ylab:'probability density (mm⁻²)',xmax:fov,ymin,ymax,logy,
+    series:[
+      {x:rc,y:dA,color:cg,dash:true,label:'Gaussian (analytic)'},
+      {x:rc,y:dG,color:cg,marker:true,label:'Gaussian (sampled)'},
+      {x:rc,y:dP,color:cp,marker:true,label:iso.name+' positrons'}
+    ]});
+
+  // Figure 2b: encircled fraction
+  const np=200, rr=[], fP=[], fG=[], fA=[];
+  for(let i=0;i<=np;i++){
+    const r=fov*i/np; rr.push(r);
+    fP.push(upperBound(P.r,r)/N); fG.push(upperBound(Gs.r,r)/N);
+    fA.push(1-Math.exp(-r*r/(2*sigma*sigma)));
+  }
+  drawChart($('cum'),{xlab:'radius r (mm)',ylab:'encircled fraction',xmax:fov,ymin:0,ymax:1,logy:false,hlines:[0.5,0.9],legendLeft:false,
+    series:[
+      {x:rr,y:fA,color:cg,dash:true,label:'Gaussian (analytic)'},
+      {x:rr,y:fG,color:cg,label:'Gaussian (sampled)'},
+      {x:rr,y:fP,color:cp,label:iso.name+' positrons'}
+    ]});
+  document.querySelectorAll('#cum').forEach(c=>{});
+
+  // stats table
+  const rows=[
+    ['RMS radius √⟨r²⟩ (mm)',P.rms,Gs.rms],
+    ['Median radius r₅₀ (mm)',P.r50,Gs.r50],
+    ['r₉₀ (mm)',P.r90,Gs.r90],
+    ['r₉₉ (mm)',P.r99,Gs.r99],
+    ['Maximum radius (mm)',P.rmax,Gs.rmax],
+    ['FWHM of 1D profile (mm)',P.fwhm,Gs.fwhm],
+    ['FWTM of 1D profile (mm)',P.fwtm,Gs.fwtm],
+    ['FWTM / FWHM',P.fwtm/P.fwhm,Gs.fwtm/Gs.fwhm],
+    ['r₉₉ / RMS radius',P.r99/P.rms,Gs.r99/Gs.rms]
+  ];
+  let html='<table><thead><tr><th></th><th class="pos">'+iso.name+' positrons</th><th class="gau">Gaussian</th><th>Ratio</th></tr></thead><tbody>';
+  for(const r of rows) html+='<tr><td>'+r[0]+'</td><td>'+sig3(r[1])+'</td><td>'+sig3(r[2])+'</td><td>'+sig3(r[1]/r[2])+'</td></tr>';
+  html+='</tbody></table><p class="cap">Gaussian σ per axis = '+sig3(sigma)+' mm. For an ideal 2D Gaussian: r₅₀ = 1.177σ, r₉₀ = 2.146σ, r₉₉ = 3.035σ, FWTM/FWHM = 1.82. N = '+N.toLocaleString('en-GB')+' events each.</p>';
+  $('stats').innerHTML=html;
+}
+
+/* ---------- interaction ---------- */
+function hover(e){
+  if(!grids) return;
+  const c=e.currentTarget, rect=c.getBoundingClientRect();
+  const lx=(e.clientX-rect.left)/rect.width*MAPW, ly=(e.clientY-rect.top)/rect.height*MAPH;
+  const {gp,gg,G,fov}=grids;
+  if(lx<MX0||lx>MX0+MSIZE||ly<MY0||ly>MY0+MSIZE){ $('readout').textContent='Hover over a map to read off the bin counts.'; return; }
+  const fx=(lx-MX0)/MSIZE, fy=1-(ly-MY0)/MSIZE;
+  const ix=Math.min(G-1,Math.floor(fx*G)), iy=Math.min(G-1,Math.floor(fy*G));
+  const x=-fov+fx*2*fov, y=-fov+fy*2*fov;
+  $('readout').textContent='x = '+x.toFixed(3)+' mm, y = '+y.toFixed(3)+' mm  |  positrons: '+gp[iy*G+ix]+' counts/bin  |  Gaussian: '+gg[iy*G+ix]+' counts/bin  (bin = '+(2*fov/G).toFixed(3)+' mm)';
+}
+$('mapP').addEventListener('mousemove',hover);
+$('mapG').addEventListener('mousemove',hover);
+
+function savePNG(figId,name){
+  const cs=document.querySelectorAll('#'+figId+' canvas');
+  const w=cs[0].width+cs[1].width, h=Math.max(cs[0].height,cs[1].height);
+  const out=document.createElement('canvas'); out.width=w; out.height=h;
+  const ctx=out.getContext('2d'); ctx.fillStyle=col('--card'); ctx.fillRect(0,0,w,h);
+  ctx.drawImage(cs[0],0,0); ctx.drawImage(cs[1],cs[0].width,0);
+  const a=document.createElement('a'); a.download=name; a.href=out.toDataURL('image/png'); a.click();
+}
+document.querySelectorAll('[data-save]').forEach(b=>b.addEventListener('click',()=>{
+  savePNG(b.dataset.save,b.dataset.save==='fig1'?'figure1_annihilation_maps.png':'figure2_radial_profile.png');
+}));
+document.querySelectorAll('[data-d]').forEach(b=>b.addEventListener('click',()=>{ $('dens').value=b.dataset.d; render(); }));
+
+let timer=null;
+function debouncedRun(){ clearTimeout(timer); timer=setTimeout(runSim,150); }
+['iso','n'].forEach(id=>$(id).addEventListener('change',debouncedRun));
+$('seed').addEventListener('change',debouncedRun);
+$('rerun').addEventListener('click',()=>{ $('seed').value=((+$('seed').value)|0)+1; runSim(); });
+['dens','zoom','match'].forEach(id=>$(id).addEventListener('input',render));
+document.querySelectorAll('input[name=cs],input[name=ys]').forEach(e=>e.addEventListener('change',render));
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',render);
+
+runSim();
+</script>
+</body>
+</html>
