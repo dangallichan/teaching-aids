@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Affine Transform Explorer</title>
+<style>
+:root{
+  --bg:#f3f4f7; --panel:#ffffff; --panel2:#f8f9fb; --ink:#16181d; --muted:#626a78; --line:#e3e6eb;
+  --grid:#eff1f4; --gridMajor:#dfe3e9; --axis:#9aa3b2;
+  --house:#2563eb; --target:#e11d48; --ghost:#a3abb8;
+  --cT:#0891b2; --cS:#16a34a; --cH:#ea580c; --cR:#9333ea;
+  --good:#16a34a; --on-c:#ffffff; --shadow:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.06);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1015; --panel:#171a21; --panel2:#1c2029; --ink:#e8eaef; --muted:#9aa2b1; --line:#2a2f3a;
+    --grid:#1d2129; --gridMajor:#2a2f3a; --axis:#5b6576;
+    --house:#60a5fa; --target:#fb7185; --ghost:#5b6576;
+    --cT:#22d3ee; --cS:#4ade80; --cH:#fb923c; --cR:#c084fc;
+    --good:#4ade80; --on-c:#0e1015; --shadow:none; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1015; --panel:#171a21; --panel2:#1c2029; --ink:#e8eaef; --muted:#9aa2b1; --line:#2a2f3a;
+  --grid:#1d2129; --gridMajor:#2a2f3a; --axis:#5b6576;
+  --house:#60a5fa; --target:#fb7185; --ghost:#5b6576;
+  --cT:#22d3ee; --cS:#4ade80; --cH:#fb923c; --cR:#c084fc;
+  --good:#4ade80; --on-c:#0e1015; --shadow:none; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{font-size:clamp(13px,1.45vh,19px)}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:1rem/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:14px;padding:16px 18px;height:100vh;min-width:1100px;min-height:640px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+
+/* ---------- top bar ---------- */
+.top{display:flex;align-items:center;gap:22px;padding:12px 18px}
+.top h1{margin:0;font-size:1.3rem;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+.ttl{display:flex;flex-direction:column;gap:4px}
+.ttl p{margin:0;font-size:.95rem;font-weight:600;color:var(--target);white-space:nowrap}
+/* header equation: [x' y' 1] = [x y 1] . A  drawn with each symbol as a column vector of all n points */
+.eq{display:flex;align-items:center;gap:12px;padding-left:22px;border-left:1px solid var(--line)}
+.eq .blk{display:flex;flex-direction:column;align-items:center;gap:3px}
+.eq small{color:var(--muted);font-size:.7rem;white-space:nowrap}
+.eq .op{font-size:1.3rem;font-weight:600;color:var(--muted);margin-bottom:1.1em}
+.bm{position:relative;display:flex;gap:5px;padding:3px 9px}
+.bm::before,.bm::after{content:"";position:absolute;top:0;bottom:0;width:6px;border:2px solid var(--ink);opacity:.75}
+.bm::before{left:0;border-right:none;border-radius:3px 0 0 3px}
+.bm::after{right:0;border-left:none;border-radius:0 3px 3px 0}
+.bm .col{display:flex;flex-direction:column;align-items:center;min-width:2.3em;padding:2px 5px 3px;border-radius:6px;
+  font:.7rem/1.12 ui-monospace,"Cascadia Mono",Consolas,monospace;color:var(--muted)}
+.bm .col b{font:italic 700 .95rem/1.15 Georgia,"Times New Roman",serif;color:var(--ink);margin-bottom:1px}
+.bm .col span{display:flex;align-items:center;justify-content:center;height:1.3em}  /* same row height with or without subscripts */
+.bm .col sub{font-size:.75em;line-height:0;vertical-align:-.3em}
+.bm.new .col{background:color-mix(in srgb,var(--house) 13%,transparent)}
+.bm.old .col{background:color-mix(in srgb,var(--ghost) 22%,transparent)}
+.bm .col.one{background:color-mix(in srgb,var(--muted) 9%,transparent)}
+.bm.amat{align-items:center;align-self:stretch;padding:0 12px;font:800 1.05rem ui-monospace,Consolas,monospace;min-height:4.6em}
+.cT{color:var(--cT)} .cS{color:var(--cS)} .cH{color:var(--cH)} .cR{color:var(--cR)}
+.spacer{flex:1}
+.toggles{display:flex;gap:14px}
+.tg{display:flex;align-items:center;gap:7px;font-size:.9rem;color:var(--muted);cursor:pointer;user-select:none;white-space:nowrap}
+.tg input{appearance:none;width:2.1em;height:1.2em;border-radius:1em;background:var(--line);position:relative;cursor:pointer;margin:0;transition:background .15s}
+.tg input::after{content:"";position:absolute;top:.15em;left:.15em;width:.9em;height:.9em;border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.tg input:checked{background:var(--house)}
+.tg input:checked::after{transform:translateX(.9em)}
+.btn{font:inherit;font-weight:600;font-size:.92rem;border-radius:9px;padding:.5em 1em;cursor:pointer;border:1px solid var(--line);
+  background:var(--panel2);color:var(--ink);white-space:nowrap;transition:transform .05s,background .15s,border-color .15s}
+.btn:hover{border-color:var(--axis)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--target);border-color:var(--target);color:#fff}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn:disabled{opacity:.45;cursor:default}
+.iconbtn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:2px 6px;border-radius:6px}
+.iconbtn:hover{background:var(--panel2);color:var(--ink)}
+
+/* ---------- main ---------- */
+main{display:grid;grid-template-columns:minmax(0,1fr) minmax(620px,40%);gap:14px;min-height:0}
+.plotcard{position:relative;min-height:0;overflow:hidden}
+#plot{position:absolute;inset:0;width:100%;height:100%;display:block}
+.legend{position:absolute;left:18px;top:16px;display:flex;flex-direction:column;gap:9px;font-size:1.12rem;font-weight:500;color:var(--ink);
+  background:color-mix(in srgb,var(--panel) 90%,transparent);padding:13px 18px;border-radius:12px;border:1px solid var(--line);pointer-events:none;box-shadow:var(--shadow)}
+.legend span{display:flex;align-items:center;gap:12px}
+.legend i{display:inline-block;width:38px;height:0;border-top:4px solid}
+.legend i[style*="dashed"],.legend i[style*="dotted"]{border-top-width:3px !important}
+.legend .hidden{display:none}
+
+.side{display:grid;grid-template-columns:1fr;grid-template-rows:repeat(4,minmax(0,1fr)) auto;gap:12px;min-height:0}
+.grp{display:grid;grid-template-columns:auto minmax(0,1fr);min-height:0;overflow:hidden}
+/* large coloured block carrying the matrix letter (S, H, R, T) */
+.tag{width:4.2rem;display:flex;align-items:center;justify-content:center;background:var(--c);color:var(--on-c);
+  font:800 2.6rem/1 ui-monospace,"Cascadia Mono",Consolas,monospace;letter-spacing:-.02em}
+.grp .content{padding:10px 18px 10px 18px;display:flex;flex-direction:column;gap:4px;min-height:0;min-width:0}
+.grp header{display:flex;align-items:center;gap:8px}
+.grp h2{margin:0;font-size:1.4rem;line-height:1.2;font-weight:700;color:var(--c)}
+.grp header .iconbtn{margin-left:auto}
+.body{display:flex;align-items:center;gap:16px;flex:1;min-height:0}
+.sliders{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0}
+.row{display:grid;grid-template-columns:2.6em minmax(0,1fr) 4.8em;grid-template-rows:auto auto;align-items:center;column-gap:12px;row-gap:3px}
+.row label{grid-row:1;grid-column:1} .row input[type=range]{grid-row:1;grid-column:2} .row .num{grid-row:1;grid-column:3} .row .scale{grid-row:2;grid-column:2}
+.row label{font:italic 600 1.55rem/1 Georgia,"Times New Roman",serif;text-align:right;color:var(--ink);white-space:nowrap}
+.row label sub{font-size:.62em;line-height:0;vertical-align:-.35em}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;margin:0;cursor:pointer;
+  background:linear-gradient(var(--c),var(--c)) 0/var(--p,50%) 100% no-repeat,var(--line)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid var(--c);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:#fff;border:3px solid var(--c);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
+.num{width:100%;font:500 .92rem ui-monospace,Consolas,monospace;text-align:right;padding:4px 6px;border-radius:7px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--ink)}
+.num:focus{outline:2px solid var(--c);border-color:transparent}
+.scale{display:flex;justify-content:space-between;font-size:.76rem;color:var(--muted);padding:0 9px;user-select:none}
+.scale span{width:0;display:flex;justify-content:center}
+
+/* matrices */
+.mat{position:relative;display:grid;grid-template-columns:repeat(3,auto);gap:.25em .9em;padding:.45em .85em;
+  font:500 .98rem/1.2 ui-monospace,"Cascadia Mono",Consolas,monospace;font-variant-numeric:tabular-nums;flex:none}
+.mat span{text-align:right;min-width:4.4ch;color:var(--muted);transition:color .15s}
+.mat span.hl{color:var(--c);font-weight:700}
+.mat::before,.mat::after{content:"";position:absolute;top:0;bottom:0;width:.45em;border:2px solid var(--ink);opacity:.8}
+.mat::before{left:0;border-right:none;border-radius:3px 0 0 3px}
+.mat::after{right:0;border-left:none;border-radius:0 3px 3px 0}
+
+/* composite */
+.comp{grid-column:1/-1;padding:14px 18px;display:grid;grid-template-columns:auto auto 1fr;align-items:center;gap:22px}
+.comp .lbl{font:700 1.1rem ui-monospace,Consolas,monospace;white-space:nowrap}
+.comp .mat{font-size:1.08rem}
+.comp .mat span{color:var(--ink)}
+.meter{display:flex;flex-direction:column;gap:7px;min-width:0}
+.meter .msg{font-size:.92rem;color:var(--muted)}
+.meter .msg b{color:var(--ink)}
+.bar{height:10px;border-radius:10px;background:var(--line);overflow:hidden}
+.bar div{height:100%;width:0;border-radius:10px;background:linear-gradient(90deg,var(--target),#f59e0b,var(--good));background-size:300% 100%;transition:width .12s}
+.meter.ok .msg{color:var(--good);font-weight:700}
+.meter .btns{display:flex;gap:8px;flex-wrap:wrap}
+.sig{font-size:.8rem;color:var(--muted);text-align:right;line-height:1.2}
+.sig a{color:inherit;text-decoration:underline;text-underline-offset:2px}
+.sig a:hover{color:var(--ink)}
+.sig{margin-top:-6px}
+</style>
+</head>
+<body>
+
+<div class="card top">
+  <div class="ttl">
+    <h1>Affine transform explorer</h1>
+    <p>Press ‘Randomize target house’ button to start your challenge!</p>
+  </div>
+  <div class="eq" aria-label="Equation: [x′ y′ 1] = [x y 1] · A, where x, y, x′, y′ and 1 are column vectors holding all n corner points of the house, and A = S·H·R·T is 3 by 3">
+    <div class="blk">
+      <div class="bm new">
+        <div class="col"><b>x′</b><span>x′<sub>1</sub></span><span>x′<sub>2</sub></span><span>⋮</span><span>x′<sub>n</sub></span></div>
+        <div class="col"><b>y′</b><span>y′<sub>1</sub></span><span>y′<sub>2</sub></span><span>⋮</span><span>y′<sub>n</sub></span></div>
+        <div class="col one"><b>1</b><span>1</span><span>1</span><span>⋮</span><span>1</span></div>
+      </div>
+      <small>transformed points (n×3)</small>
+    </div>
+    <div class="op">=</div>
+    <div class="blk">
+      <div class="bm old">
+        <div class="col"><b>x</b><span>x<sub>1</sub></span><span>x<sub>2</sub></span><span>⋮</span><span>x<sub>n</sub></span></div>
+        <div class="col"><b>y</b><span>y<sub>1</sub></span><span>y<sub>2</sub></span><span>⋮</span><span>y<sub>n</sub></span></div>
+        <div class="col one"><b>1</b><span>1</span><span>1</span><span>⋮</span><span>1</span></div>
+      </div>
+      <small>original points (n×3)</small>
+    </div>
+    <div class="op">·</div>
+    <div class="blk">
+      <div class="bm amat"><span class="cS">S</span>·<span class="cH">H</span>·<span class="cR">R</span>·<span class="cT">T</span></div>
+      <small>A (3×3)</small>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="toggles">
+    <label class="tg"><input type="checkbox" id="optSteps"> Show steps</label>
+    <label class="tg"><input type="checkbox" id="optBasis" checked> Show axes vectors</label>
+    <label class="tg"><input type="checkbox" id="optOrig" checked> Show original</label>
+  </div>
+  <button class="btn" id="btnReset" title="Return all parameters to the identity transform and clear the target">Reset</button>
+</div>
+
+<main>
+  <div class="card plotcard">
+    <canvas id="plot" aria-label="Plot of the house before and after the affine transform"></canvas>
+    <div class="legend">
+      <span id="lgOrig"><i style="border-top:2px dashed var(--ghost)"></i>Original</span>
+      <span><i style="border-color:var(--house)"></i>Your house</span>
+      <span id="lgTarget" class="hidden"><i style="border-top:3px dashed var(--target)"></i>Target</span>
+      <span id="lgSteps" class="hidden"><i style="border-top:2px dotted var(--muted)"></i>Intermediate steps</span>
+    </div>
+  </div>
+
+  <div class="side">
+    <section class="card grp" style="--c:var(--cS)" data-g="S">
+      <div class="tag" aria-hidden="true">S</div>
+      <div class="content">
+      <header><h2>Scaling</h2><button class="iconbtn" data-reset="S" title="Reset scaling">↺</button></header>
+      <div class="body"><div class="sliders" id="sl-S"></div><div class="mat" id="mS"></div></div>
+      </div>
+    </section>
+    <section class="card grp" style="--c:var(--cH)" data-g="H">
+      <div class="tag" aria-hidden="true">H</div>
+      <div class="content">
+      <header><h2>Shear</h2><button class="iconbtn" data-reset="H" title="Reset shear">↺</button></header>
+      <div class="body"><div class="sliders" id="sl-H"></div><div class="mat" id="mH"></div></div>
+      </div>
+    </section>
+    <section class="card grp" style="--c:var(--cR)" data-g="R">
+      <div class="tag" aria-hidden="true">R</div>
+      <div class="content">
+      <header><h2>Rotation</h2><button class="iconbtn" data-reset="R" title="Reset rotation">↺</button></header>
+      <div class="body"><div class="sliders" id="sl-R"></div><div class="mat" id="mR"></div></div>
+      </div>
+    </section>
+    <section class="card grp" style="--c:var(--cT)" data-g="T">
+      <div class="tag" aria-hidden="true">T</div>
+      <div class="content">
+      <header><h2>Translation</h2><button class="iconbtn" data-reset="T" title="Reset translation">↺</button></header>
+      <div class="body"><div class="sliders" id="sl-T"></div><div class="mat" id="mT"></div></div>
+      </div>
+    </section>
+
+    <section class="card comp" style="--c:var(--ink)">
+      <span class="lbl">A = <span class="cS">S</span>·<span class="cH">H</span>·<span class="cR">R</span>·<span class="cT">T</span> =</span>
+      <div class="mat" id="mA"></div>
+      <div class="meter" id="meter">
+        <div class="msg" id="meterMsg"></div>
+        <div class="bar"><div id="meterBar"></div></div>
+        <div class="btns">
+          <button class="btn primary" id="btnRand">Randomize target house</button>
+          <button class="btn" id="btnReveal" disabled title="Animate the sliders to the target's parameters">Reveal answer</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+<footer class="sig">Dan Gallichan · Cardiff University · <a href="https://github.com/dangallichan/teaching-aids" target="_blank" rel="noopener">github.com/dangallichan/teaching-aids</a></footer>
+
+<script>
+// ================= geometry =================
+let HX=[30,30,5,49,49,104,104,151,284,261,261,229,229,151,151,30];
+let HY=[296,145,145,95,9,9,43,6,145,145,296,296,170,170,296,296].map(v=>300-v);
+const mean=a=>a.reduce((s,v)=>s+v,0)/a.length, MX=mean(HX), MY=mean(HY);
+HX=HX.map(v=>(v-MX)/150); HY=HY.map(v=>(v-MY)/150);
+
+const mul=(A,B)=>A.map(r=>[0,1,2].map(j=>r[0]*B[0][j]+r[1]*B[1][j]+r[2]*B[2][j]));
+const cosd=d=>Math.cos(d*Math.PI/180), sind=d=>Math.sin(d*Math.PI/180);
+const Tm=(tx,ty)=>[[1,0,0],[0,1,0],[tx,ty,1]];
+const Sm=(sx,sy)=>[[sx,0,0],[0,sy,0],[0,0,1]];
+const Hm=(shx,shy)=>[[1,shy,0],[shx,1,0],[0,0,1]];
+const Rm=q=>[[cosd(q),sind(q),0],[-sind(q),cosd(q),0],[0,0,1]];
+const apply=A=>({x:HX.map((x,i)=>x*A[0][0]+HY[i]*A[1][0]+A[2][0]), y:HX.map((x,i)=>x*A[0][1]+HY[i]*A[1][1]+A[2][1])});
+function mats(p){const S=Sm(p.sx,p.sy),H=Hm(p.shx,p.shy),R=Rm(p.q),T=Tm(p.tx,p.ty);
+  const SH=mul(S,H), SHR=mul(SH,R), A=mul(SHR,T); return {S,H,R,T,SH,SHR,A};}
+
+// ================= parameters & controls =================
+const DEFS=[
+  {k:'sx', g:'S',lab:'s<sub>x</sub>', min:-4,max:4,step:.01,v:1, ticks:[-4,-2,0,2,4]},
+  {k:'sy', g:'S',lab:'s<sub>y</sub>', min:-4,max:4,step:.01,v:1, ticks:[-4,-2,0,2,4]},
+  {k:'shx',g:'H',lab:'h<sub>x</sub>', min:-4,max:4,step:.01,v:0, ticks:[-4,-2,0,2,4]},
+  {k:'shy',g:'H',lab:'h<sub>y</sub>', min:-4,max:4,step:.01,v:0, ticks:[-4,-2,0,2,4]},
+  {k:'q',  g:'R',lab:'θ',            min:-180,max:180,step:.5,v:0, ticks:[-180,-90,0,90,180], unit:'°'},
+  {k:'tx', g:'T',lab:'t<sub>x</sub>', min:-4,max:4,step:.01,v:0, ticks:[-4,-2,0,2,4]},
+  {k:'ty', g:'T',lab:'t<sub>y</sub>', min:-4,max:4,step:.01,v:0, ticks:[-4,-2,0,2,4]},
+];
+const P={}; DEFS.forEach(d=>P[d.k]=d.v);
+const UI={};
+for(const d of DEFS){
+  const row=document.createElement('div'); row.className='row';
+  row.innerHTML=`<label for="r-${d.k}">${d.lab}</label>
+    <input type="range" id="r-${d.k}" min="${d.min}" max="${d.max}" step="${d.step}" value="${d.v}">
+    <div class="scale">${d.ticks.map(t=>`<span>${t}${d.unit||''}</span>`).join('')}</div>
+    <input class="num" type="number" id="n-${d.k}" min="${d.min}" max="${d.max}" step="${d.k==='q'?1:0.1}" aria-label="${d.k} value">`;
+  document.getElementById('sl-'+d.g).appendChild(row);
+  const r=row.querySelector('input[type=range]'), n=row.querySelector('.num');
+  UI[d.k]={r,n,d};
+  r.addEventListener('input',()=>{stopAnim(); P[d.k]=+r.value; sync(d.k,false); render();});
+  r.addEventListener('dblclick',()=>animateTo({...P,[d.k]:d.v}));
+  n.addEventListener('input',()=>{const v=parseFloat(n.value); if(isFinite(v)){stopAnim(); P[d.k]=Math.min(d.max,Math.max(d.min,v)); sync(d.k,true); render();}});
+}
+function sync(k,fromNum){
+  const {r,n,d}=UI[k]; r.value=P[k];
+  r.style.setProperty('--p',((P[k]-d.min)/(d.max-d.min)*100)+'%');
+  if(!fromNum){const s=(k==='q'?P[k].toFixed(1):P[k].toFixed(2)); n.value=/^-0\.0+$/.test(s)?s.slice(1):s;}
+}
+document.querySelectorAll('[data-reset]').forEach(b=>b.addEventListener('click',()=>{
+  const g=b.dataset.reset, t={...P}; DEFS.filter(d=>d.g===g).forEach(d=>t[d.k]=d.v); animateTo(t);}));
+
+// ================= matrices display =================
+const HL={S:[[0,0],[1,1]],H:[[0,1],[1,0]],R:[[0,0],[0,1],[1,0],[1,1]],T:[[2,0],[2,1]]};
+function fmt(v){const s=v.toFixed(2); return s==='-0.00'?'0.00':s;}
+function showMat(id,M,hl){
+  const el=document.getElementById(id);
+  if(!el.children.length) el.innerHTML='<span></span>'.repeat(9);
+  M.flat().forEach((v,i)=>{const s=el.children[i]; s.textContent=fmt(v);
+    s.classList.toggle('hl',!!hl&&hl.some(([r,c])=>r*3+c===i));});
+}
+
+// ================= target & meter =================
+let target=null;   // {params, A}
+function rms(a,b){let s=0; for(let i=0;i<a.x.length;i++) s+=(a.x[i]-b.x[i])**2+(a.y[i]-b.y[i])**2; return Math.sqrt(s/a.x.length);}
+// Random target, re-drawn until it is "well shaped":
+//  - the 2x2 linear part of A is not too squashed: its singular values (the stretch factors
+//    along the principal directions) satisfy  smin >= MIN_STRETCH  and  smax/smin <= MAX_ANISO
+//    (this accounts for scaling and shear together)
+//  - the whole house stays inside the plot (|x|,|y| <= FIT)
+const MIN_STRETCH=0.5, MAX_ANISO=2.5, FIT=3.7;
+function stretches(A){const a=A[0][0],b=A[0][1],c=A[1][0],d=A[1][1];
+  const s=a*a+b*b+c*c+d*d, det=a*d-b*c, root=Math.sqrt(Math.max(0,s*s-4*det*det));
+  return [Math.sqrt((s-root)/2), Math.sqrt((s+root)/2)];}
+function randomTarget(){
+  const r=Math.random, sgn=()=>r()<.5?-1:1, mag=()=>0.6+r()*1.9;   // |scale| in [0.6, 2.5]
+  for(let tries=0;tries<500;tries++){
+    const p={tx:(r()-.5)*4, ty:(r()-.5)*4, sx:sgn()*mag(), sy:sgn()*mag(), shx:(r()-.5)*1, shy:(r()-.5)*1, q:(r()-.5)*180};
+    const A=mats(p).A, [lo,hi]=stretches(A), h=apply(A);
+    if(lo>=MIN_STRETCH && hi/lo<=MAX_ANISO && h.x.every(v=>Math.abs(v)<=FIT) && h.y.every(v=>Math.abs(v)<=FIT)) return {p,A};
+  }
+  const p={tx:1,ty:-1,sx:1.5,sy:-1,shx:.2,shy:0,q:30}; return {p,A:mats(p).A};   // fallback (never expected)
+}
+document.getElementById('btnRand').onclick=()=>{
+  target=randomTarget();
+  document.getElementById('btnReveal').disabled=false;
+  render();
+};
+document.getElementById('btnReveal').onclick=()=>{ if(target) animateTo(target.p,1100); };
+document.getElementById('btnReset').onclick=()=>{
+  target=null; document.getElementById('btnReveal').disabled=true;
+  const t={}; DEFS.forEach(d=>t[d.k]=d.v); animateTo(t);
+};
+
+// ================= animation =================
+let anim=0;
+function stopAnim(){ if(anim){cancelAnimationFrame(anim); anim=0;} }
+function animateTo(t,ms=650){
+  stopAnim(); const from={...P}, t0=performance.now();
+  const ease=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+  const step=now=>{const e=ease(Math.min(1,(now-t0)/ms));
+    for(const k in t) P[k]=from[k]+(t[k]-from[k])*e;
+    DEFS.forEach(d=>sync(d.k,false)); render();
+    anim=e<1?requestAnimationFrame(step):0;};
+  anim=requestAnimationFrame(step);
+}
+
+// ================= drawing =================
+const cv=document.getElementById('plot'), card=cv.parentElement;
+const opt={steps:document.getElementById('optSteps'),basis:document.getElementById('optBasis'),orig:document.getElementById('optOrig')};
+Object.values(opt).forEach(o=>o.addEventListener('change',render));
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function render(){
+  const M=mats(P);
+  showMat('mS',M.S,HL.S); showMat('mH',M.H,HL.H); showMat('mR',M.R,HL.R); showMat('mT',M.T,HL.T); showMat('mA',M.A,null);
+  // meter
+  const meter=document.getElementById('meter'), msg=document.getElementById('meterMsg'), bar=document.getElementById('meterBar');
+  if(target){
+    const d=rms(apply(M.A),apply(target.A)), close=Math.max(0,Math.min(1,1-d/3));
+    bar.style.width=(close*100)+'%'; bar.style.backgroundPosition=(100-close*100)+'% 0';
+    const ok=d<0.06; meter.classList.toggle('ok',ok);
+    msg.innerHTML=ok?'✓ Matched — your transform reproduces the target'
+      :`Match the red target house &nbsp;·&nbsp; RMS distance <b>${d.toFixed(2)}</b>`;
+  }else{
+    meter.classList.remove('ok'); bar.style.width='0';
+    msg.innerHTML='Randomize a target house, then use the sliders to match it.';
+  }
+  document.getElementById('lgTarget').classList.toggle('hidden',!target);
+  document.getElementById('lgSteps').classList.toggle('hidden',!opt.steps.checked);
+  document.getElementById('lgOrig').classList.toggle('hidden',!opt.orig.checked);
+  draw(M);
+}
+
+function draw(M){
+  const dpr=window.devicePixelRatio||1, W=card.clientWidth, H=card.clientHeight;
+  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+  const c=cv.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,W,H);
+  const pad=34, side=Math.max(60,Math.min(W,H)-2*pad);
+  const L=(W-side)/2, T=(H-side)/2, X=v=>L+(v+4)/8*side, Y=v=>T+side-(v+4)/8*side, u=side/8;
+  const col={grid:css('--grid'),major:css('--gridMajor'),axis:css('--axis'),muted:css('--muted'),ink:css('--ink'),
+    house:css('--house'),target:css('--target'),ghost:css('--ghost'),S:css('--cS'),H:css('--cH'),R:css('--cR'),panel:css('--panel')};
+  // grid
+  c.lineWidth=1;
+  c.strokeStyle=col.grid; c.beginPath();
+  for(let k=-8;k<=8;k++){ if(k%2===0) continue; const v=k/2; c.moveTo(X(v),T);c.lineTo(X(v),T+side); c.moveTo(L,Y(v));c.lineTo(L+side,Y(v)); }
+  c.stroke();
+  c.strokeStyle=col.major; c.beginPath();
+  for(let v=-4;v<=4;v++){ const x=Math.round(X(v))+.5,y=Math.round(Y(v))+.5; c.moveTo(x,T);c.lineTo(x,T+side); c.moveTo(L,y);c.lineTo(L+side,y); }
+  c.stroke();
+  // axes through origin
+  c.strokeStyle=col.axis; c.lineWidth=1.5; c.beginPath();
+  c.moveTo(X(-4),Y(0));c.lineTo(X(4),Y(0)); c.moveTo(X(0),Y(-4));c.lineTo(X(0),Y(4)); c.stroke();
+  // tick labels
+  const fs=Math.max(11,Math.round(side/70));
+  c.fillStyle=col.muted; c.font=`${fs}px system-ui,Segoe UI,Arial`;
+  c.textAlign='center'; c.textBaseline='top';
+  for(let v=-4;v<=4;v++) if(v) c.fillText(v,X(v),Y(0)+5);
+  c.textAlign='right'; c.textBaseline='middle';
+  for(let v=-4;v<=4;v++) if(v) c.fillText(v,X(0)-6,Y(v));
+  c.font=`italic ${fs+3}px Georgia,serif`; c.fillStyle=col.ink;
+  c.textAlign='right'; c.textBaseline='bottom'; c.fillText('x',X(4)-4,Y(0)-4);
+  c.textAlign='left'; c.textBaseline='top'; c.fillText('y',X(0)+6,Y(4)+2);
+
+  c.save(); c.beginPath(); c.rect(L,T,side,side); c.clip();
+  c.lineJoin='round'; c.lineCap='round';
+  const poly=(p,{stroke,width=2,dash=[],fill=null,alpha=1})=>{
+    c.beginPath(); p.x.forEach((x,i)=>i?c.lineTo(X(x),Y(p.y[i])):c.moveTo(X(x),Y(p.y[i]))); c.closePath();
+    if(fill){c.globalAlpha=alpha*0.13; c.fillStyle=fill; c.fill(); c.globalAlpha=1;}
+    c.globalAlpha=alpha; c.setLineDash(dash); c.strokeStyle=stroke; c.lineWidth=width; c.stroke(); c.setLineDash([]); c.globalAlpha=1;
+  };
+  if(opt.orig.checked) poly({x:HX,y:HY},{stroke:col.ghost,width:2,dash:[6,6]});
+  if(opt.steps.checked){
+    poly(apply(M.S),{stroke:col.S,width:2,dash:[2,5],alpha:.9});
+    poly(apply(M.SH),{stroke:col.H,width:2,dash:[2,5],alpha:.9});
+    poly(apply(M.SHR),{stroke:col.R,width:2,dash:[2,5],alpha:.9});
+  }
+  if(target) poly(apply(target.A),{stroke:col.target,width:3,dash:[10,7],fill:col.target});
+  poly(apply(M.A),{stroke:col.house,width:4,fill:col.house});
+
+  // transformed axes vectors: images of the unit vectors are rows 1 and 2 of A, origin moves to row 3
+  if(opt.basis.checked){
+    const ox=M.A[2][0], oy=M.A[2][1];
+    const arrow=(x0,y0,x1,y1,color,label)=>{
+      const ax=X(x0),ay=Y(y0),bx=X(x1),by=Y(y1),ang=Math.atan2(by-ay,bx-ax),len=Math.hypot(bx-ax,by-ay);
+      c.strokeStyle=color; c.fillStyle=color; c.lineWidth=2.5;
+      c.beginPath(); c.moveTo(ax,ay); c.lineTo(bx-Math.cos(ang)*Math.min(10,len*.4),by-Math.sin(ang)*Math.min(10,len*.4)); c.stroke();
+      if(len>4){c.beginPath(); c.moveTo(bx,by);
+        c.lineTo(bx-12*Math.cos(ang-.4),by-12*Math.sin(ang-.4)); c.lineTo(bx-12*Math.cos(ang+.4),by-12*Math.sin(ang+.4)); c.closePath(); c.fill();}
+      c.font=`italic 600 ${fs+2}px Georgia,serif`; c.textAlign='center'; c.textBaseline='middle';
+      c.fillText(label,bx+14*Math.cos(ang),by+14*Math.sin(ang));
+    };
+    arrow(ox,oy,ox+M.A[0][0],oy+M.A[0][1],col.ink,'x̂′');
+    arrow(ox,oy,ox+M.A[1][0],oy+M.A[1][1],col.ink,'ŷ′');
+    c.fillStyle=col.house; c.beginPath(); c.arc(X(ox),Y(oy),5,0,2*Math.PI); c.fill();
+    c.strokeStyle=col.panel; c.lineWidth=2; c.stroke();
+  }
+  c.restore();
+  // frame
+  c.strokeStyle=col.major; c.lineWidth=1; c.strokeRect(Math.round(L)+.5,Math.round(T)+.5,Math.round(side)-1,Math.round(side)-1);
+}
+
+new ResizeObserver(()=>render()).observe(card);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',render);
+DEFS.forEach(d=>sync(d.k,false));
+render();
+</script>
+</body>
+</html>
