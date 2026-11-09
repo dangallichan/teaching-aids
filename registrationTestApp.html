@@ -32,6 +32,10 @@ main{flex:1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-temp
 .panel canvas{position:absolute;inset:0;width:100%;height:100%}
 #busy{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(238,240,243,.6);
   font-weight:600;font-size:16px}
+.sig{font-size:.8rem;color:var(--muted);text-align:right;line-height:1.2}
+.sig a{color:inherit;text-decoration:underline;text-underline-offset:2px}
+.sig a:hover{color:var(--ink)}
+.sig{margin-top:-4px}
 </style>
 </head>
 <body>
@@ -59,6 +63,7 @@ main{flex:1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-temp
   <div class="panel"><canvas id="cMSD"></canvas></div>
   <div class="panel"><canvas id="cMI"></canvas></div>
 </main>
+<footer class="sig">Dan Gallichan · Cardiff University · <a href="https://github.com/dangallichan/teaching-aids" target="_blank" rel="noopener">github.com/dangallichan/teaching-aids</a></footer>
 <div id="busy">Computing…</div>
 
 <script>
@@ -226,22 +231,23 @@ function toImage(data,lo,hi,cmap){
 // descriptions shown above the fixed/moving image (below its title) when that scan is selected
 const CAPTIONS={
   CT:'CT: CT image of patient (HU)',
-  T1:'T1: T1-weighted MRI of patient at time point 1',
-  T1b:'T1b: T1-weighted MRI of patient at time point 2',
+  T1:'T1: T1-weighted MRI of patient',
+  T1b:'T1b: T1-weighted MRI of patient at slightly offset slice',
   PET:'PET: PET image of patient',
-  T2:'T2: T2-weighted MRI of patient at time point 1',
+  T2:'T2: T2-weighted MRI of patient',
   Phantom1:'Phantom 1: Shepp–Logan phantom with bright outer ring and dim internal structures',
   Phantom2:'Phantom 2: Shepp–Logan phantom with no outer ring and bright internal structures',
 };
 function imagePanel(id,img,ttl,cbar,caption){
   const {c,w,h}=prep(id);
-  title(c,w,ttl);
   // Layout: title, then a caption area (room for 2 lines, reserved in every image panel),
   // then the image. Colour-bar space is also always reserved, so every image panel
   // (fixed, moving, difference) draws its image at the same size and height.
   const CAP0=27, CAPH=36, top=CAP0+CAPH, bot=12, cbw=70;
   const side=Math.max(20,Math.min(w-24-cbw, h-top-bot));
   const L=cbar?(w-side-cbw)/2:(w-side)/2, T=top;
+  // title centred over the image (not the whole panel), so it lines up with the caption below it
+  c.fillStyle='#1b1d21'; c.font=TFONT; c.textAlign='center'; c.textBaseline='top'; c.fillText(ttl,L+side/2,8);
   c.imageSmoothingEnabled=false; c.drawImage(img,L,T,side,side);
   if(caption){
     // word-wrap the caption to the image width (shrinking the font a little if needed)
