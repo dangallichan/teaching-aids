@@ -108,7 +108,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr) minmax(620px,40%);gap:14px
 .grp header .iconbtn{margin-left:auto}
 .body{display:flex;align-items:center;gap:16px;flex:1;min-height:0}
 .sliders{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0}
-.row{display:grid;grid-template-columns:2.6em minmax(0,1fr) 4.8em;grid-template-rows:auto auto;align-items:center;column-gap:12px;row-gap:3px}
+.row{display:grid;grid-template-columns:2.6em minmax(0,1fr) 5.4em;grid-template-rows:auto auto;align-items:center;column-gap:12px;row-gap:3px}
 .row label{grid-row:1;grid-column:1} .row .trk{grid-row:1;grid-column:2;display:flex;align-items:center;min-width:0} .row .num{grid-row:1;grid-column:3} .row .scale{grid-row:2;grid-column:2}
 .row label{font:italic 600 1.55rem/1 Georgia,"Times New Roman",serif;text-align:right;color:var(--ink);white-space:nowrap}
 .row label sub{font-size:.62em;line-height:0;vertical-align:-.35em}
@@ -579,7 +579,7 @@ function render(){
   const meter=document.getElementById('meter'), msg=document.getElementById('meterMsg'), bar=document.getElementById('meterBar');
   if(target){
     const d=rms(apply(M.A),apply(target.A)), close=Math.max(0,Math.min(1,1-d/3));
-    bar.style.width=(close*100)+'%'; bar.style.backgroundPosition=(100-close*100)+'% 0';
+    bar.style.width=(close*100)+'%'; bar.style.backgroundPosition=(close*100)+'% 0';   // red when far, green when matched (fixed 22/11/26, D. Gallichan / Claude)
     const ok=d<0.06; meter.classList.toggle('ok',ok);
     const sm=COMPACT.matches;
     msg.innerHTML=ok?(sm?'✓ Matched!':'✓ Matched — your transform reproduces the target')
