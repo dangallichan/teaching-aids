@@ -65,3 +65,5 @@ https://github.com/user-attachments/assets/6a5e71e9-370d-4910-a209-5ddfa6a0cf8e
 
 [https://dangallichan.github.io/teaching-aids/clock.html](https://dangallichan.github.io/teaching-aids/clock.html)
 
+[https://dangallichan.github.io/teaching-aids/examTimer.html](https://dangallichan.github.io/teaching-aids/examTimer.html)
+
