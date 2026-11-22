@@ -215,18 +215,18 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
   .legend span{gap:6px}
   .legend i{width:16px;border-top-width:3px}
 
-  .side{display:flex;flex-direction:column;gap:5px;min-height:0;overflow-y:auto;overscroll-behavior:contain;border-radius:12px}
+  .side{display:flex;flex-direction:column;gap:4px;min-height:0;overflow-y:auto;overscroll-behavior:contain;border-radius:12px}
   .card{border-radius:11px}
 
   /* action bar: New target · Reveal · match meter · ⚙ */
-  .comp{order:-1;position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:8px;padding:5px 6px;flex:none}
+  .comp{order:-1;position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:8px;padding:4px 6px;flex:none}
   .comp .lbl,.comp>.mat{display:none}
   .comp .meter{flex-direction:row;align-items:center;gap:8px;flex:1;width:auto;min-width:0}
   .meter .btns{order:-1;flex-wrap:nowrap;gap:5px;justify-content:flex-start}
   .meter .info{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
   .meter .msg{font-size:.74rem;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .bar{height:7px}
-  .btn{font-size:.85rem;padding:0 .8em;min-height:36px}
+  .btn{font-size:.85rem;padding:0 .8em;min-height:34px}
   #btnMore{padding:0 .65em;font-size:1.1rem;align-items:center;justify-content:center;line-height:1}
   .lg{display:none} .sm{display:inline}
   .only-compact{display:flex}
@@ -237,7 +237,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
   .grp .content{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:0;padding:0 0 0 4px}
   .grp header{grid-column:2;grid-row:1}
   .grp h2{display:none}
-  .grp header .iconbtn{font-size:1.25rem;min-width:38px;min-height:38px;padding:0}
+  .grp header .iconbtn{font-size:1.25rem;min-width:36px;min-height:32px;padding:0}
   .body{grid-column:1;grid-row:1;flex-direction:row;align-items:center;gap:8px}
   .body .mat{display:none}
   body.showmats .body .mat{display:grid;font-size:.68rem;gap:.1em .5em;padding:.3em .6em}
@@ -245,7 +245,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
   .row{grid-template-columns:1.6em minmax(0,1fr) 3.7em;column-gap:6px}
   .row .scale{display:none}
   .row label{font-size:1.1rem}
-  .row .trk{height:38px;touch-action:none}
+  .row .trk{height:38px;height:clamp(28px,calc((100dvh - 104px)/7),38px);touch-action:none}
   .num{font-size:.78rem;padding:3px 4px}
 
   /* the old header becomes a pop-up sheet */
@@ -604,10 +604,16 @@ function draw(M){
       if(len>4){c.beginPath(); c.moveTo(bx,by);
         c.lineTo(bx-12*Math.cos(ang-.4),by-12*Math.sin(ang-.4)); c.lineTo(bx-12*Math.cos(ang+.4),by-12*Math.sin(ang+.4)); c.closePath(); c.fill();}
       c.font=`italic 600 ${fs+2}px Georgia,serif`; c.textAlign='center'; c.textBaseline='middle';
-      c.fillText(label,bx+14*Math.cos(ang),by+14*Math.sin(ang));
+      // code generated for D. Gallichan by Claude, date: 22/11/26
+      // letter + prime as text, hat drawn as a chevron (combining ^ renders badly in some fonts)
+      const lx=bx+14*Math.cos(ang), ly=by+14*Math.sin(ang);
+      c.fillText(label+'′',lx,ly);
+      const lw=c.measureText(label).width, pw=c.measureText(label+'′').width, hx=lx-pw/2+lw/2+fs*.08, hy=ly-fs*.62, hw=fs*.22;
+      c.lineWidth=Math.max(1.2,fs/11); c.lineCap='round'; c.lineJoin='round';
+      c.beginPath(); c.moveTo(hx-hw,hy+hw*.55); c.lineTo(hx,hy); c.lineTo(hx+hw,hy+hw*.55); c.stroke();
     };
-    arrow(ox,oy,ox+M.A[0][0],oy+M.A[0][1],col.ink,'x̂′');
-    arrow(ox,oy,ox+M.A[1][0],oy+M.A[1][1],col.ink,'ŷ′');
+    arrow(ox,oy,ox+M.A[0][0],oy+M.A[0][1],col.ink,'x');
+    arrow(ox,oy,ox+M.A[1][0],oy+M.A[1][1],col.ink,'y');
     c.fillStyle=col.house; c.beginPath(); c.arc(X(ox),Y(oy),5,0,2*Math.PI); c.fill();
     c.strokeStyle=col.panel; c.lineWidth=2; c.stroke();
   }
