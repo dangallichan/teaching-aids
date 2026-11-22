@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Affine Transform Explorer</title>
 <style>
 :root{
@@ -100,7 +100,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr) minmax(620px,40%);gap:14px
 .body{display:flex;align-items:center;gap:16px;flex:1;min-height:0}
 .sliders{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0}
 .row{display:grid;grid-template-columns:2.6em minmax(0,1fr) 4.8em;grid-template-rows:auto auto;align-items:center;column-gap:12px;row-gap:3px}
-.row label{grid-row:1;grid-column:1} .row input[type=range]{grid-row:1;grid-column:2} .row .num{grid-row:1;grid-column:3} .row .scale{grid-row:2;grid-column:2}
+.row label{grid-row:1;grid-column:1} .row .trk{grid-row:1;grid-column:2;display:flex;align-items:center;min-width:0} .row .num{grid-row:1;grid-column:3} .row .scale{grid-row:2;grid-column:2}
 .row label{font:italic 600 1.55rem/1 Georgia,"Times New Roman",serif;text-align:right;color:var(--ink);white-space:nowrap}
 .row label sub{font-size:.62em;line-height:0;vertical-align:-.35em}
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;margin:0;cursor:pointer;
@@ -139,6 +139,8 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 .sig a{color:inherit;text-decoration:underline;text-underline-offset:2px}
 .sig a:hover{color:var(--ink)}
 .sig{margin-top:-6px}
+.meter .info{display:contents}
+.only-compact,.sm,.rotate-tip{display:none}
 
 /* ================= phones & narrow screens ================= */
 /* Single scrolling column. The plot sticks to the top of the screen (portrait) so the house
@@ -183,18 +185,95 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
   main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
   .plotcard{position:sticky;top:6px;width:100%;max-height:calc(100vh - 12px);aspect-ratio:1/1}
 }
-/* bigger slider handles for fingers */
+/* bigger slider handles for fingers; touches are handled by the tall .trk strip (see touchSlider) */
 @media (pointer:coarse){
-  input[type=range]{height:8px}
+  input[type=range]{height:8px;pointer-events:none}
   input[type=range]::-webkit-slider-thumb{width:28px;height:28px}
   input[type=range]::-moz-range-thumb{width:22px;height:22px}
   .scale{padding:0 14px}
+  .row .trk{height:44px;touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:pointer}
+  .btn,.iconbtn,.tg{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+}
+/* portrait phones: suggest rotating */
+@media (orientation:portrait) and (max-width:600px){
+  .rotate-tip{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 8px 8px 14px;font-size:.9rem;font-weight:600;color:var(--house)}
+}
+
+/* ============ landscape phones: plot + all sliders on one screen, no page scrolling ============ */
+/* code generated for D. Gallichan by Claude, date: 22/11/26 */
+/* The header (title, equation, toggles, reset) moves into a pop-up sheet behind the ⚙ button,
+   and the per-group matrices are hidden unless "Show matrices" is switched on in that sheet. */
+@media (orientation:landscape) and (max-height:520px){
+  html{font-size:14px}
+  html,body{height:100%}
+  body{display:block;height:100vh;height:100dvh;min-width:0;min-height:0;overflow:hidden;
+    padding:6px max(8px,env(safe-area-inset-right)) 6px max(8px,env(safe-area-inset-left))}
+  footer.sig{display:none}
+  main{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;height:100%;align-items:stretch}
+  .plotcard{position:relative;top:auto;height:100%;width:auto;max-width:56vw;max-height:none;aspect-ratio:1/1;align-self:stretch;box-shadow:var(--shadow)}
+  .legend{left:6px;top:6px;font-size:.68rem;gap:2px;padding:4px 7px;border-radius:7px}
+  .legend span{gap:6px}
+  .legend i{width:16px;border-top-width:3px}
+
+  .side{display:flex;flex-direction:column;gap:5px;min-height:0;overflow-y:auto;overscroll-behavior:contain;border-radius:12px}
+  .card{border-radius:11px}
+
+  /* action bar: New target · Reveal · match meter · ⚙ */
+  .comp{order:-1;position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:8px;padding:5px 6px;flex:none}
+  .comp .lbl,.comp>.mat{display:none}
+  .comp .meter{flex-direction:row;align-items:center;gap:8px;flex:1;width:auto;min-width:0}
+  .meter .btns{order:-1;flex-wrap:nowrap;gap:5px;justify-content:flex-start}
+  .meter .info{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
+  .meter .msg{font-size:.74rem;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar{height:7px}
+  .btn{font-size:.85rem;padding:0 .8em;min-height:36px}
+  #btnMore{padding:0 .65em;font-size:1.1rem;align-items:center;justify-content:center;line-height:1}
+  .lg{display:none} .sm{display:inline}
+  .only-compact{display:flex}
+
+  /* slider groups: thin coloured tag, sliders, group reset on the right */
+  .grp{grid-template-columns:1.9rem minmax(0,1fr);flex:1 0 auto;overflow:visible}
+  .tag{width:1.9rem;font-size:1.1rem;border-radius:11px 0 0 11px}
+  .grp .content{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:0;padding:0 0 0 4px}
+  .grp header{grid-column:2;grid-row:1}
+  .grp h2{display:none}
+  .grp header .iconbtn{font-size:1.25rem;min-width:38px;min-height:38px;padding:0}
+  .body{grid-column:1;grid-row:1;flex-direction:row;align-items:center;gap:8px}
+  .body .mat{display:none}
+  body.showmats .body .mat{display:grid;font-size:.68rem;gap:.1em .5em;padding:.3em .6em}
+  .sliders{gap:0}
+  .row{grid-template-columns:1.6em minmax(0,1fr) 3.7em;column-gap:6px}
+  .row .scale{display:none}
+  .row label{font-size:1.1rem}
+  .row .trk{height:38px;touch-action:none}
+  .num{font-size:.78rem;padding:3px 4px}
+
+  /* the old header becomes a pop-up sheet */
+  .top{display:none}
+  body.sheet::before{content:"";position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:40}
+  body.sheet .top{display:flex;flex-direction:column;align-items:flex-start;gap:12px;position:fixed;z-index:50;
+    top:8px;bottom:8px;left:50%;transform:translateX(-50%);width:min(560px,calc(100vw - 24px));overflow-y:auto;padding:14px 18px 16px;
+    box-shadow:0 10px 30px rgba(0,0,0,.3)}
+  .top .ttl{flex:none}
+  .top .ttl p{display:none}
+  .top .eq{flex:none;align-self:center;border:none;padding:0;zoom:.85}
+  .top .toggles{flex-direction:column;gap:12px}
+  .tg{font-size:1rem}
+  .sheetclose{position:absolute;top:8px;right:8px;font-size:1.2rem;min-width:40px;min-height:40px;align-items:center;justify-content:center}
+  .top .sig{display:block;margin:0;text-align:left;font-size:.75rem}
+}
+@media (orientation:landscape) and (max-height:520px) and (max-width:760px){
+  .meter .msg .wide{display:none}
+  .plotcard{max-width:52vw}
 }
 </style>
 </head>
 <body>
 
-<div class="card top">
+<div class="card rotate-tip" id="rotateTip"><span>↻ Turn your phone sideways for the best view</span><button class="iconbtn" id="tipClose" aria-label="Dismiss">✕</button></div>
+
+<div class="card top" id="sheet">
+  <button class="iconbtn only-compact sheetclose" id="sheetClose" aria-label="Close">✕</button>
   <div class="ttl">
     <h1>Affine transform explorer</h1>
     <p>Press ‘Randomize target house’ button to start your challenge!</p>
@@ -228,8 +307,10 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     <label class="tg"><input type="checkbox" id="optSteps"> Show steps</label>
     <label class="tg"><input type="checkbox" id="optBasis" checked> Show axes vectors</label>
     <label class="tg"><input type="checkbox" id="optOrig" checked> Show original</label>
+    <label class="tg only-compact"><input type="checkbox" id="optMats"> Show matrices</label>
   </div>
   <button class="btn" id="btnReset" title="Return all parameters to the identity transform and clear the target">Reset</button>
+  <div class="sig only-compact">Dan Gallichan · Cardiff University · <a href="https://github.com/dangallichan/teaching-aids" target="_blank" rel="noopener">github.com/dangallichan/teaching-aids</a></div>
 </div>
 
 <main>
@@ -277,12 +358,15 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
       <span class="lbl">A = <span class="cS">S</span>·<span class="cH">H</span>·<span class="cR">R</span>·<span class="cT">T</span> =</span>
       <div class="mat" id="mA"></div>
       <div class="meter" id="meter">
-        <div class="msg" id="meterMsg"></div>
-        <div class="bar"><div id="meterBar"></div></div>
-        <div class="btns">
-          <button class="btn primary" id="btnRand">Randomize target house</button>
-          <button class="btn" id="btnReveal" disabled title="Animate the sliders to the target's parameters">Reveal answer</button>
+        <div class="info">
+          <div class="msg" id="meterMsg"></div>
+          <div class="bar"><div id="meterBar"></div></div>
         </div>
+        <div class="btns">
+          <button class="btn primary" id="btnRand"><span class="lg">Randomize target house</span><span class="sm">New target</span></button>
+          <button class="btn" id="btnReveal" disabled title="Animate the sliders to the target's parameters"><span class="lg">Reveal answer</span><span class="sm">Reveal</span></button>
+        </div>
+        <button class="btn only-compact" id="btnMore" aria-label="Options, equation and reset" title="Options">⚙︎</button>
       </div>
     </section>
   </div>
@@ -321,7 +405,7 @@ const UI={};
 for(const d of DEFS){
   const row=document.createElement('div'); row.className='row';
   row.innerHTML=`<label for="r-${d.k}">${d.lab}</label>
-    <input type="range" id="r-${d.k}" min="${d.min}" max="${d.max}" step="${d.step}" value="${d.v}">
+    <div class="trk"><input type="range" id="r-${d.k}" min="${d.min}" max="${d.max}" step="${d.step}" value="${d.v}"></div>
     <div class="scale">${d.ticks.map(t=>`<span>${t}${d.unit||''}</span>`).join('')}</div>
     <input class="num" type="number" id="n-${d.k}" min="${d.min}" max="${d.max}" step="${d.k==='q'?1:0.1}" aria-label="${d.k} value">`;
   document.getElementById('sl-'+d.g).appendChild(row);
@@ -330,7 +414,49 @@ for(const d of DEFS){
   r.addEventListener('input',()=>{stopAnim(); P[d.k]=+r.value; sync(d.k,false); render();});
   r.addEventListener('dblclick',()=>animateTo({...P,[d.k]:d.v}));
   n.addEventListener('input',()=>{const v=parseFloat(n.value); if(isFinite(v)){stopAnim(); P[d.k]=Math.min(d.max,Math.max(d.min,v)); sync(d.k,true); render();}});
+  touchSlider(row.querySelector('.trk'),r,d);
 }
+
+// code generated for D. Gallichan by Claude, date: 22/11/26
+// ---- touch screens: drive the slider from a tall invisible strip around it ----
+// The native range only responds to touches right on its thumb (iOS) and fights with page
+// scrolling, so on coarse pointers the range itself ignores touches (CSS) and this strip
+// handles them: tap = jump there, horizontal drag = slide. A vertical swipe still scrolls
+// the page in the portrait layout (touch-action:pan-y cancels the pointer).
+const COARSE=matchMedia('(pointer:coarse)'), THUMB=28;
+function touchSlider(trk,r,d){
+  let id=null,x0=0,y0=0,live=false;
+  const setFromX=x=>{
+    const b=r.getBoundingClientRect(), f=Math.min(1,Math.max(0,(x-b.left-THUMB/2)/(b.width-THUMB)));
+    let v=d.min+f*(d.max-d.min); v=Math.round(v/d.step)*d.step;
+    stopAnim(); P[d.k]=+v.toFixed(4); sync(d.k,false); render();
+  };
+  trk.addEventListener('pointerdown',e=>{
+    if(!COARSE.matches||e.button>0) return;
+    id=e.pointerId; x0=e.clientX; y0=e.clientY;
+    live=getComputedStyle(trk).touchAction==='none';   // landscape layout: no scrolling to compete with
+    trk.setPointerCapture(id); if(live) setFromX(e.clientX);
+  });
+  trk.addEventListener('pointermove',e=>{
+    if(e.pointerId!==id) return;
+    if(!live && Math.abs(e.clientX-x0)>6 && Math.abs(e.clientX-x0)>Math.abs(e.clientY-y0)) live=true;
+    if(live) setFromX(e.clientX);
+  });
+  const end=e=>{ if(e.pointerId!==id) return;
+    if(e.type==='pointerup' && !live && Math.hypot(e.clientX-x0,e.clientY-y0)<10) setFromX(e.clientX);  // a tap
+    id=null; live=false; };
+  trk.addEventListener('pointerup',end); trk.addEventListener('pointercancel',()=>{id=null;live=false;});
+}
+
+// ---- landscape-phone layout: options sheet, matrices toggle, rotate tip ----
+const COMPACT=matchMedia('(orientation:landscape) and (max-height:520px)');
+const sheetOpen=on=>document.body.classList.toggle('sheet',on);
+document.getElementById('btnMore').onclick=e=>{e.stopPropagation(); sheetOpen(!document.body.classList.contains('sheet'));};
+document.getElementById('sheetClose').onclick=()=>sheetOpen(false);
+document.addEventListener('click',e=>{ if(document.body.classList.contains('sheet') && !e.target.closest('#sheet')) sheetOpen(false); });
+document.getElementById('optMats').addEventListener('change',e=>document.body.classList.toggle('showmats',e.target.checked));
+COMPACT.addEventListener('change',()=>{ if(!COMPACT.matches) sheetOpen(false); render(); });
+document.getElementById('tipClose').onclick=()=>document.getElementById('rotateTip').remove();
 function sync(k,fromNum){
   const {r,n,d}=UI[k]; r.value=P[k];
   r.style.setProperty('--p',((P[k]-d.min)/(d.max-d.min)*100)+'%');
@@ -409,11 +535,12 @@ function render(){
     const d=rms(apply(M.A),apply(target.A)), close=Math.max(0,Math.min(1,1-d/3));
     bar.style.width=(close*100)+'%'; bar.style.backgroundPosition=(100-close*100)+'% 0';
     const ok=d<0.06; meter.classList.toggle('ok',ok);
-    msg.innerHTML=ok?'✓ Matched — your transform reproduces the target'
-      :`Match the red target house &nbsp;·&nbsp; RMS distance <b>${d.toFixed(2)}</b>`;
+    const sm=COMPACT.matches;
+    msg.innerHTML=ok?(sm?'✓ Matched!':'✓ Matched — your transform reproduces the target')
+      :(sm?`<span class="wide">Match the red house · </span>RMS <b>${d.toFixed(2)}</b>`:`Match the red target house &nbsp;·&nbsp; RMS distance <b>${d.toFixed(2)}</b>`);
   }else{
     meter.classList.remove('ok'); bar.style.width='0';
-    msg.innerHTML='Randomize a target house, then use the sliders to match it.';
+    msg.innerHTML=COMPACT.matches?'Tap <b>New target</b> to start':'Randomize a target house, then use the sliders to match it.';
   }
   document.getElementById('lgTarget').classList.toggle('hidden',!target);
   document.getElementById('lgSteps').classList.toggle('hidden',!opt.steps.checked);
