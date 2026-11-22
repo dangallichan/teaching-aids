@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<!-- code generated for D. Gallichan by Claude, date: 22/11/26 -->
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exam Timer</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #171b22;
+    --line: #2a313c;
+    --fg: #eef1f5;
+    --muted: #8a94a3;
+    --ok: #3ccf7a;
+    --warn: #ffb020;
+    --stop: #ff4d4d;
+    --accent: var(--ok);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--fg); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-variant-numeric: tabular-nums;
+    display: flex; flex-direction: column;
+    min-height: 100vh;
+  }
+  body.phase-pre  { --accent: #6aa8ff; }
+  body.phase-ok   { --accent: var(--ok); }
+  body.phase-warn { --accent: var(--warn); }
+  body.phase-end  { --accent: var(--stop); }
+
+  header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 2.2vh 3vw 0;
+  }
+  #title { font-size: clamp(22px, 3.4vw, 54px); font-weight: 600; }
+  #now { font-size: clamp(18px, 2.6vw, 42px); color: var(--muted); }
+  #now b { color: var(--fg); font-weight: 500; }
+
+  main {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    padding: 2vh 3vw; gap: 3.5vh;
+  }
+  .times {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 2vw;
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 2vh 2vw; text-align: center;
+  }
+  .label {
+    font-size: clamp(14px, 1.5vw, 26px); color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.12em;
+  }
+  .val { font-size: clamp(36px, 6vw, 110px); font-weight: 500; line-height: 1.1; }
+
+  .remaining { text-align: center; }
+  #remaining {
+    font-size: clamp(80px, 15vw, 280px); font-weight: 600; line-height: 1;
+    color: var(--accent); transition: color 0.6s;
+  }
+  .bar {
+    height: clamp(10px, 1.4vh, 18px); background: var(--line); border-radius: 99px;
+    overflow: hidden; margin-top: 2.5vh;
+  }
+  #fill { height: 100%; width: 0; background: var(--accent); transition: background 0.6s; }
+
+  #notice {
+    text-align: center; border-radius: 14px; padding: 2.2vh 2vw;
+    font-size: clamp(20px, 2.8vw, 48px); font-weight: 500;
+    border: 3px solid var(--accent); color: var(--fg);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    transition: border-color 0.6s, background 0.6s;
+  }
+  #notice small {
+    display: block; margin-top: 0.6vh; font-weight: 400;
+    font-size: 0.62em; color: var(--muted);
+  }
+
+  footer {
+    display: flex; justify-content: flex-end; gap: 10px; padding: 0 3vw 2vh;
+  }
+  button {
+    font: inherit; font-size: 14px; color: var(--muted); background: transparent;
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer;
+  }
+  button:hover { color: var(--fg); border-color: var(--muted); }
+  body.clean footer { opacity: 0; transition: opacity 0.4s; }
+  body.clean footer:hover { opacity: 1; }
+
+  /* Settings dialog */
+  #setup {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: none; align-items: center; justify-content: center; z-index: 10;
+  }
+  #setup.open { display: flex; }
+  #setup form {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 28px 32px; width: min(520px, 92vw); display: grid; gap: 16px;
+  }
+  #setup h2 { font-size: 22px; font-weight: 600; }
+  #setup label { display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+  #setup .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  #setup input {
+    font: inherit; font-size: 18px; color: var(--fg); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+  }
+  #setup input:focus { outline: 2px solid #6aa8ff; border-color: transparent; }
+  #setup .hint { font-size: 13px; color: var(--muted); }
+  #setup select {
+    font: inherit; font-size: 18px; color: var(--fg); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+  }
+  #setup details { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  #setup summary { cursor: pointer; color: var(--fg); font-size: 15px; }
+  #setup details[open] summary { margin-bottom: 10px; }
+  #setup .msgs { display: grid; gap: 6px; margin-top: 10px; }
+  #setup .msgs input, #setup .msgs textarea { font-size: 14px; padding: 6px 8px; }
+  #setup textarea {
+    font: inherit; color: var(--fg); background: var(--bg); resize: vertical;
+    border: 1px solid var(--line); border-radius: 8px;
+  }
+  #setup .phase { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 8px; }
+  #setup form { max-height: 94vh; overflow-y: auto; }
+  #setup .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+  #setup .primary { background: #6aa8ff; color: #0b1220; border-color: #6aa8ff; font-weight: 600; font-size: 16px; padding: 8px 18px; }
+</style>
+</head>
+<body class="phase-pre">
+
+<header>
+  <div id="title">Exam</div>
+  <div id="now">Current time <b id="nowVal">--:--:--</b></div>
+</header>
+
+<main>
+  <div class="times">
+    <div class="card"><div class="label">Start time</div><div class="val" id="startVal">--:--</div></div>
+    <div class="card"><div class="label">End time</div><div class="val" id="endVal">--:--</div></div>
+  </div>
+
+  <div class="remaining">
+    <div class="label" id="remLabel">Time remaining</div>
+    <div id="remaining">--:--:--</div>
+    <div class="bar"><div id="fill"></div></div>
+  </div>
+
+  <div id="notice">&nbsp;</div>
+</main>
+
+<footer>
+  <button id="btnSetup" title="Shortcut: S">Settings</button>
+  <button id="btnFull" title="Shortcut: F">Fullscreen</button>
+</footer>
+
+<div id="setup">
+  <form id="setupForm">
+    <h2>Exam settings</h2>
+    <label>Exam title
+      <input id="fTitle" type="text" placeholder="e.g. EN1211 Computation – Final Exam">
+    </label>
+    <div class="row">
+      <label>Start time
+        <input id="fStart" type="time" required>
+      </label>
+      <label>Duration (minutes)
+        <input id="fDur" type="number" min="1" max="600" step="1" required>
+      </label>
+    </div>
+    <div class="row">
+      <label>No leaving in final (min)
+        <input id="fLast" type="number" min="0" max="120" step="1">
+      </label>
+      <label>No leaving in first (min)
+        <input id="fFirst" type="number" min="0" max="120" step="1">
+      </label>
+    </div>
+    <label>Exam type
+      <select id="fType">
+        <option value="paper">Paper exam</option>
+        <option value="computer">Computer-based exam</option>
+      </select>
+    </label>
+    <details id="msgBox">
+      <summary>Edit messages shown to students</summary>
+      <div class="hint">Placeholders: {start} {end} {cutoff} (time leaving stops) {last} (minutes). If "No leaving in final" is 0, sentences that mention {cutoff} or {last} are dropped automatically.</div>
+      <div class="msgs">
+        <div class="phase">Before start</div>
+        <input id="m_preMsg">
+        <textarea id="m_preSub" rows="2"></textarea>
+        <div class="phase">During exam – may leave</div>
+        <input id="m_okMsg"><textarea id="m_okSub" rows="2"></textarea>
+        <div class="phase">Final minutes – stay seated</div>
+        <input id="m_warnMsg"><textarea id="m_warnSub" rows="2"></textarea>
+        <div class="phase">Time is up</div>
+        <input id="m_endMsg"><textarea id="m_endSub" rows="2"></textarea>
+      </div>
+      <div class="actions"><button type="button" id="btnResetMsgs">Reset messages to defaults</button></div>
+    </details>
+    <div class="hint" id="endPreview"></div>
+    <div class="hint">Settings are saved in the page link, so you can bookmark a configured exam.
+      Shortcuts: <b>S</b> settings, <b>F</b> fullscreen.</div>
+    <div class="actions">
+      <button type="button" id="btnCancel">Cancel</button>
+      <button type="submit" class="primary">Start display</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const pad = n => String(n).padStart(2, "0");
+  const hm = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const hms = d => `${hm(d)}:${pad(d.getSeconds())}`;
+
+  // ---- Message presets ----
+  const MSG_KEYS = ["preMsg", "preSub", "okMsg", "okSub", "warnMsg", "warnSub", "endMsg", "endSub"];
+  const PRESETS = {
+    paper: {
+      preMsg: "The exam has not started yet",
+      preSub: "Do not turn over your paper until told to do so.",
+      okMsg: "You may leave early if you have finished",
+      okSub: "Raise your hand and wait to be told. No leaving after {cutoff} (final {last} minutes).",
+      warnMsg: "Please remain seated until the end of the exam",
+      warnSub: "You may not leave during the final {last} minutes.",
+      endMsg: "Time is up – stop writing now",
+      endSub: "Put your pen down and remain seated until your script has been collected.",
+    },
+    computer: {
+      preMsg: "The exam has not started yet",
+      preSub: "Do not start the exam until told to do so.",
+      okMsg: "You may leave early if you have finished",
+      okSub: "Make sure you have submitted your answers, then raise your hand and wait to be told. No leaving after {cutoff} (final {last} minutes).",
+      warnMsg: "Please remain seated until the end of the exam",
+      warnSub: "You may not leave during the final {last} minutes. Check that all your answers are saved.",
+      endMsg: "Time is up – the exam is now closed",
+      endSub: "Stop working and remain seated until you are told you may leave.",
+    },
+  };
+
+  // ---- Config (from URL, then localStorage, then defaults) ----
+  function defaults() {
+    const d = new Date(Date.now() + 5 * 60000);
+    d.setMinutes(Math.ceil(d.getMinutes() / 5) * 5, 0, 0);
+    return { title: "Exam", start: hm(d), dur: 120, last: 15, first: 0, type: "paper", msgs: {} };
+  }
+  function readConfig() {
+    const p = new URLSearchParams(location.search);
+    if (p.has("start") && p.has("dur")) {
+      const msgs = {};
+      MSG_KEYS.forEach(k => { if (p.has(k)) msgs[k] = p.get(k); });
+      return {
+        title: p.get("title") || "Exam",
+        start: p.get("start"),
+        dur: +p.get("dur"),
+        last: p.has("last") ? +p.get("last") : 15,
+        first: p.has("first") ? +p.get("first") : 0,
+        type: PRESETS[p.get("type")] ? p.get("type") : "paper",
+        msgs,
+      };
+    }
+    try {
+      const s = JSON.parse(localStorage.getItem("examTimerCfg") || "null");
+      if (s && s.start && s.dur) return Object.assign({ type: "paper", msgs: {} }, s);
+    } catch (e) {}
+    return null;
+  }
+  function saveConfig(c) {
+    const p = new URLSearchParams({ title: c.title, start: c.start, dur: c.dur, last: c.last, first: c.first, type: c.type });
+    // only store messages that differ from the preset, to keep links short
+    MSG_KEYS.forEach(k => { if (c.msgs[k] !== undefined) p.set(k, c.msgs[k]); });
+    history.replaceState(null, "", location.pathname + "?" + p.toString());
+    try { localStorage.setItem("examTimerCfg", JSON.stringify(c)); } catch (e) {}
+  }
+  const msgText = k => (cfg.msgs && cfg.msgs[k] !== undefined) ? cfg.msgs[k] : PRESETS[cfg.type][k];
+
+  let cfg = readConfig();
+  let startT, endT;
+
+  function computeTimes() {
+    const [h, m] = cfg.start.split(":").map(Number);
+    const s = new Date(); s.setHours(h, m, 0, 0);
+    startT = s.getTime();
+    endT = startT + cfg.dur * 60000;
+    $("title").textContent = cfg.title || "Exam";
+    document.title = (cfg.title || "Exam") + " – Timer";
+    $("startVal").textContent = hm(new Date(startT));
+    $("endVal").textContent = hm(new Date(endT));
+  }
+
+  // ---- Settings dialog ----
+  function openSetup() {
+    const c = cfg || defaults();
+    $("fTitle").value = c.title === "Exam" ? "" : c.title;
+    $("fStart").value = c.start;
+    $("fDur").value = c.dur;
+    $("fLast").value = c.last;
+    $("fFirst").value = c.first;
+    $("fType").value = c.type || "paper";
+    MSG_KEYS.forEach(k => {
+      $("m_" + k).value = (c.msgs && c.msgs[k] !== undefined) ? c.msgs[k] : PRESETS[$("fType").value][k];
+    });
+    updatePreview();
+    $("setup").classList.add("open");
+    $("fTitle").focus();
+  }
+  function closeSetup() { $("setup").classList.remove("open"); }
+  function updatePreview() {
+    const st = $("fStart").value, du = +$("fDur").value;
+    if (!st || !du) { $("endPreview").textContent = ""; return; }
+    const [h, m] = st.split(":").map(Number);
+    const e = new Date(); e.setHours(h, m + du, 0, 0);
+    $("endPreview").textContent = `Exam will end at ${hm(e)}.`;
+  }
+  ["fStart", "fDur"].forEach(id => $(id).addEventListener("input", updatePreview));
+  function resetMsgs() { MSG_KEYS.forEach(k => { $("m_" + k).value = PRESETS[$("fType").value][k]; }); }
+  $("fType").addEventListener("change", resetMsgs);
+  $("btnResetMsgs").addEventListener("click", resetMsgs);
+
+  $("setupForm").addEventListener("submit", ev => {
+    ev.preventDefault();
+    cfg = {
+      title: $("fTitle").value.trim() || "Exam",
+      start: $("fStart").value,
+      dur: Math.max(1, Math.round(+$("fDur").value)),
+      last: Math.max(0, Math.round(+$("fLast").value || 0)),
+      first: Math.max(0, Math.round(+$("fFirst").value || 0)),
+      type: $("fType").value,
+      msgs: {},
+    };
+    MSG_KEYS.forEach(k => {
+      const v = $("m_" + k).value.trim();
+      if (v !== PRESETS[cfg.type][k]) cfg.msgs[k] = v;
+    });
+    lastKey = "";
+    saveConfig(cfg);
+    computeTimes();
+    closeSetup();
+  });
+  $("btnCancel").addEventListener("click", () => { if (cfg) closeSetup(); });
+  $("btnSetup").addEventListener("click", openSetup);
+
+  // ---- Fullscreen ----
+  function toggleFull() {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+    else document.exitFullscreen?.().catch(() => {});
+  }
+  $("btnFull").addEventListener("click", toggleFull);
+  document.addEventListener("fullscreenchange", () =>
+    document.body.classList.toggle("clean", !!document.fullscreenElement));
+
+  document.addEventListener("keydown", e => {
+    if ($("setup").classList.contains("open")) {
+      if (e.key === "Escape" && cfg) closeSetup();
+      return;
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "s" || e.key === "S") { e.preventDefault(); openSetup(); }
+    if (e.key === "f" || e.key === "F") { e.preventDefault(); toggleFull(); }
+  });
+
+  // ---- Main loop ----
+  function fmtDur(ms) {
+    const t = Math.max(0, Math.ceil(ms / 1000));
+    const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+    return `${h}:${pad(m)}:${pad(s)}`;
+  }
+  function setPhase(p) {
+    document.body.className = document.body.className.replace(/phase-\w+/, "phase-" + p);
+  }
+  function plural(n, w) { return `${n} ${w}${n === 1 ? "" : "s"}`; }
+
+  // Fill placeholders; if there is no final no-leaving period, drop sentences that refer to it
+  function fill(s) {
+    if (!s) return "";
+    if (!(cfg.last > 0)) {
+      s = s.split(/(?<=[.!?])\s+/).filter(x => !/\{(cutoff|last)\}/.test(x)).join(" ");
+    }
+    return s
+      .replace(/\{start\}/g, hm(new Date(startT)))
+      .replace(/\{end\}/g, hm(new Date(endT)))
+      .replace(/\{cutoff\}/g, hm(new Date(endT - cfg.last * 60000)))
+      .replace(/\{last\}/g, cfg.last);
+  }
+
+  var lastKey = "";
+  function tick() {
+    const nowD = new Date();
+    const now = nowD.getTime();
+    $("nowVal").textContent = hms(nowD);
+
+    if (!cfg) return;
+
+    const lastMs = cfg.last * 60000;
+    const firstMs = cfg.first * 60000;
+    let phase, label, rem, frac, msg, sub = "";
+
+    if (now < startT) {
+      phase = "pre"; label = "Exam starts in";
+      rem = startT - now; frac = 0;
+      msg = fill(msgText("preMsg"));
+      sub = fill(msgText("preSub"));
+    } else if (now < endT) {
+      label = "Time remaining";
+      rem = endT - now; frac = (now - startT) / (endT - startT);
+      const noLeaveFrom = endT - lastMs;
+      const canLeaveFrom = startT + firstMs;
+      if (cfg.last > 0 && now >= noLeaveFrom) {
+        phase = "warn";
+        msg = fill(msgText("warnMsg"));
+        sub = fill(msgText("warnSub"));
+      } else if (cfg.first > 0 && now < canLeaveFrom) {
+        phase = "ok";
+        msg = `You may not leave before ${hm(new Date(canLeaveFrom))}`;
+        sub = `No one may leave during the first ${plural(cfg.first, "minute")}.`;
+      } else {
+        phase = "ok";
+        msg = fill(msgText("okMsg"));
+        sub = fill(msgText("okSub"));
+      }
+    } else {
+      phase = "end"; label = "Exam finished";
+      rem = 0; frac = 1;
+      msg = fill(msgText("endMsg"));
+      sub = fill(msgText("endSub"));
+    }
+
+    setPhase(phase);
+    $("remLabel").textContent = label;
+    $("remaining").textContent = fmtDur(rem);
+    $("fill").style.width = (frac * 100).toFixed(3) + "%";
+
+    const key = msg + sub;
+    if (key !== lastKey) {
+      lastKey = key;
+      $("notice").innerHTML = "";
+      $("notice").append(msg);
+      if (sub) { const s = document.createElement("small"); s.textContent = sub; $("notice").append(s); }
+    }
+  }
+
+  if (cfg) computeTimes(); else openSetup();
+  tick();
+  // align updates with the second boundary
+  setTimeout(function loop() { tick(); setTimeout(loop, 1000 - (Date.now() % 1000) + 5); },
+             1000 - (Date.now() % 1000) + 5);
+})();
+</script>
+</body>
+</html>
