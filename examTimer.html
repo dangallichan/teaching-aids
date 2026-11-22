@@ -240,23 +240,23 @@
   const PRESETS = {
     paper: {
       preMsg: "The exam has not started yet",
-      preSub: "Do not turn over your paper until told to do so.",
+      preSub: "",
       okMsg: "You may leave early if you have finished",
-      okSub: "Raise your hand and wait to be told. No leaving after {cutoff} (final {last} minutes).",
+      okSub: "No leaving after {cutoff}.",
       warnMsg: "Please remain seated until the end of the exam",
-      warnSub: "You may not leave during the final {last} minutes.",
-      endMsg: "Time is up – stop writing now",
-      endSub: "Put your pen down and remain seated until your script has been collected.",
+      warnSub: "",
+      endMsg: "Time is up",
+      endSub: "Please stop writing.",
     },
     computer: {
       preMsg: "The exam has not started yet",
-      preSub: "Do not start the exam until told to do so.",
+      preSub: "",
       okMsg: "You may leave early if you have finished",
-      okSub: "Make sure you have submitted your answers, then raise your hand and wait to be told. No leaving after {cutoff} (final {last} minutes).",
+      okSub: "No leaving after {cutoff}.",
       warnMsg: "Please remain seated until the end of the exam",
-      warnSub: "You may not leave during the final {last} minutes. Check that all your answers are saved.",
-      endMsg: "Time is up – the exam is now closed",
-      endSub: "Stop working and remain seated until you are told you may leave.",
+      warnSub: "",
+      endMsg: "Time is up",
+      endSub: "",
     },
   };
 
@@ -451,7 +451,7 @@
       } else if (cfg.first > 0 && now < canLeaveFrom) {
         phase = "ok";
         msg = `You may not leave before ${hm(new Date(canLeaveFrom))}`;
-        sub = `No one may leave during the first ${plural(cfg.first, "minute")}.`;
+        sub = "";
       } else {
         phase = "ok";
         msg = fill(msgText("okMsg"));
