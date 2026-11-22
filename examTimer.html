@@ -108,6 +108,21 @@
   }
   #setup input:focus { outline: 2px solid #6aa8ff; border-color: transparent; }
   #setup .hint { font-size: 13px; color: var(--muted); }
+  #setup select {
+    font: inherit; font-size: 18px; color: var(--fg); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+  }
+  #setup details { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  #setup summary { cursor: pointer; color: var(--fg); font-size: 15px; }
+  #setup details[open] summary { margin-bottom: 10px; }
+  #setup .msgs { display: grid; gap: 6px; margin-top: 10px; }
+  #setup .msgs input, #setup .msgs textarea { font-size: 14px; padding: 6px 8px; }
+  #setup textarea {
+    font: inherit; color: var(--fg); background: var(--bg); resize: vertical;
+    border: 1px solid var(--line); border-radius: 8px;
+  }
+  #setup .phase { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 8px; }
+  #setup form { max-height: 94vh; overflow-y: auto; }
   #setup .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
   #setup .primary { background: #6aa8ff; color: #0b1220; border-color: #6aa8ff; font-weight: 600; font-size: 16px; padding: 8px 18px; }
 </style>
@@ -161,6 +176,28 @@
         <input id="fFirst" type="number" min="0" max="120" step="1">
       </label>
     </div>
+    <label>Exam type
+      <select id="fType">
+        <option value="paper">Paper exam</option>
+        <option value="computer">Computer-based exam</option>
+      </select>
+    </label>
+    <details id="msgBox">
+      <summary>Edit messages shown to students</summary>
+      <div class="hint">Placeholders: {start} {end} {cutoff} (time leaving stops) {last} (minutes). If "No leaving in final" is 0, sentences that mention {cutoff} or {last} are dropped automatically.</div>
+      <div class="msgs">
+        <div class="phase">Before start</div>
+        <input id="m_preMsg">
+        <textarea id="m_preSub" rows="2"></textarea>
+        <div class="phase">During exam – may leave</div>
+        <input id="m_okMsg"><textarea id="m_okSub" rows="2"></textarea>
+        <div class="phase">Final minutes – stay seated</div>
+        <input id="m_warnMsg"><textarea id="m_warnSub" rows="2"></textarea>
+        <div class="phase">Time is up</div>
+        <input id="m_endMsg"><textarea id="m_endSub" rows="2"></textarea>
+      </div>
+      <div class="actions"><button type="button" id="btnResetMsgs">Reset messages to defaults</button></div>
+    </details>
     <div class="hint" id="endPreview"></div>
     <div class="hint">Settings are saved in the page link, so you can bookmark a configured exam.
       Shortcuts: <b>S</b> settings, <b>F</b> fullscreen.</div>
@@ -178,34 +215,66 @@
   const hm = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   const hms = d => `${hm(d)}:${pad(d.getSeconds())}`;
 
+  // ---- Message presets ----
+  const MSG_KEYS = ["preMsg", "preSub", "okMsg", "okSub", "warnMsg", "warnSub", "endMsg", "endSub"];
+  const PRESETS = {
+    paper: {
+      preMsg: "The exam has not started yet",
+      preSub: "Do not turn over your paper until told to do so.",
+      okMsg: "You may leave early if you have finished",
+      okSub: "Raise your hand and wait to be told. No leaving after {cutoff} (final {last} minutes).",
+      warnMsg: "Please remain seated until the end of the exam",
+      warnSub: "You may not leave during the final {last} minutes.",
+      endMsg: "Time is up – stop writing now",
+      endSub: "Put your pen down and remain seated until your script has been collected.",
+    },
+    computer: {
+      preMsg: "The exam has not started yet",
+      preSub: "Do not start the exam until told to do so.",
+      okMsg: "You may leave early if you have finished",
+      okSub: "Make sure you have submitted your answers, then raise your hand and wait to be told. No leaving after {cutoff} (final {last} minutes).",
+      warnMsg: "Please remain seated until the end of the exam",
+      warnSub: "You may not leave during the final {last} minutes. Check that all your answers are saved.",
+      endMsg: "Time is up – the exam is now closed",
+      endSub: "Stop working and remain seated until you are told you may leave.",
+    },
+  };
+
   // ---- Config (from URL, then localStorage, then defaults) ----
   function defaults() {
     const d = new Date(Date.now() + 5 * 60000);
     d.setMinutes(Math.ceil(d.getMinutes() / 5) * 5, 0, 0);
-    return { title: "Exam", start: hm(d), dur: 120, last: 15, first: 0 };
+    return { title: "Exam", start: hm(d), dur: 120, last: 15, first: 0, type: "paper", msgs: {} };
   }
   function readConfig() {
     const p = new URLSearchParams(location.search);
     if (p.has("start") && p.has("dur")) {
+      const msgs = {};
+      MSG_KEYS.forEach(k => { if (p.has(k)) msgs[k] = p.get(k); });
       return {
         title: p.get("title") || "Exam",
         start: p.get("start"),
         dur: +p.get("dur"),
         last: p.has("last") ? +p.get("last") : 15,
         first: p.has("first") ? +p.get("first") : 0,
+        type: PRESETS[p.get("type")] ? p.get("type") : "paper",
+        msgs,
       };
     }
     try {
       const s = JSON.parse(localStorage.getItem("examTimerCfg") || "null");
-      if (s && s.start && s.dur) return s;
+      if (s && s.start && s.dur) return Object.assign({ type: "paper", msgs: {} }, s);
     } catch (e) {}
     return null;
   }
   function saveConfig(c) {
-    const p = new URLSearchParams({ title: c.title, start: c.start, dur: c.dur, last: c.last, first: c.first });
+    const p = new URLSearchParams({ title: c.title, start: c.start, dur: c.dur, last: c.last, first: c.first, type: c.type });
+    // only store messages that differ from the preset, to keep links short
+    MSG_KEYS.forEach(k => { if (c.msgs[k] !== undefined) p.set(k, c.msgs[k]); });
     history.replaceState(null, "", location.pathname + "?" + p.toString());
     try { localStorage.setItem("examTimerCfg", JSON.stringify(c)); } catch (e) {}
   }
+  const msgText = k => (cfg.msgs && cfg.msgs[k] !== undefined) ? cfg.msgs[k] : PRESETS[cfg.type][k];
 
   let cfg = readConfig();
   let startT, endT;
@@ -229,6 +298,10 @@
     $("fDur").value = c.dur;
     $("fLast").value = c.last;
     $("fFirst").value = c.first;
+    $("fType").value = c.type || "paper";
+    MSG_KEYS.forEach(k => {
+      $("m_" + k).value = (c.msgs && c.msgs[k] !== undefined) ? c.msgs[k] : PRESETS[$("fType").value][k];
+    });
     updatePreview();
     $("setup").classList.add("open");
     $("fTitle").focus();
@@ -242,6 +315,9 @@
     $("endPreview").textContent = `Exam will end at ${hm(e)}.`;
   }
   ["fStart", "fDur"].forEach(id => $(id).addEventListener("input", updatePreview));
+  function resetMsgs() { MSG_KEYS.forEach(k => { $("m_" + k).value = PRESETS[$("fType").value][k]; }); }
+  $("fType").addEventListener("change", resetMsgs);
+  $("btnResetMsgs").addEventListener("click", resetMsgs);
 
   $("setupForm").addEventListener("submit", ev => {
     ev.preventDefault();
@@ -251,7 +327,14 @@
       dur: Math.max(1, Math.round(+$("fDur").value)),
       last: Math.max(0, Math.round(+$("fLast").value || 0)),
       first: Math.max(0, Math.round(+$("fFirst").value || 0)),
+      type: $("fType").value,
+      msgs: {},
     };
+    MSG_KEYS.forEach(k => {
+      const v = $("m_" + k).value.trim();
+      if (v !== PRESETS[cfg.type][k]) cfg.msgs[k] = v;
+    });
+    lastKey = "";
     saveConfig(cfg);
     computeTimes();
     closeSetup();
@@ -273,8 +356,9 @@
       if (e.key === "Escape" && cfg) closeSetup();
       return;
     }
-    if (e.key === "s" || e.key === "S") openSetup();
-    if (e.key === "f" || e.key === "F") toggleFull();
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "s" || e.key === "S") { e.preventDefault(); openSetup(); }
+    if (e.key === "f" || e.key === "F") { e.preventDefault(); toggleFull(); }
   });
 
   // ---- Main loop ----
@@ -288,7 +372,20 @@
   }
   function plural(n, w) { return `${n} ${w}${n === 1 ? "" : "s"}`; }
 
-  let lastKey = "";
+  // Fill placeholders; if there is no final no-leaving period, drop sentences that refer to it
+  function fill(s) {
+    if (!s) return "";
+    if (!(cfg.last > 0)) {
+      s = s.split(/(?<=[.!?])\s+/).filter(x => !/\{(cutoff|last)\}/.test(x)).join(" ");
+    }
+    return s
+      .replace(/\{start\}/g, hm(new Date(startT)))
+      .replace(/\{end\}/g, hm(new Date(endT)))
+      .replace(/\{cutoff\}/g, hm(new Date(endT - cfg.last * 60000)))
+      .replace(/\{last\}/g, cfg.last);
+  }
+
+  var lastKey = "";
   function tick() {
     const nowD = new Date();
     const now = nowD.getTime();
@@ -303,8 +400,8 @@
     if (now < startT) {
       phase = "pre"; label = "Exam starts in";
       rem = startT - now; frac = 0;
-      msg = "The exam has not started yet";
-      sub = "Do not turn over your paper until told to do so.";
+      msg = fill(msgText("preMsg"));
+      sub = fill(msgText("preSub"));
     } else if (now < endT) {
       label = "Time remaining";
       rem = endT - now; frac = (now - startT) / (endT - startT);
@@ -312,24 +409,22 @@
       const canLeaveFrom = startT + firstMs;
       if (cfg.last > 0 && now >= noLeaveFrom) {
         phase = "warn";
-        msg = "Please remain seated until the end of the exam";
-        sub = `You may not leave during the final ${plural(cfg.last, "minute")}.`;
+        msg = fill(msgText("warnMsg"));
+        sub = fill(msgText("warnSub"));
       } else if (cfg.first > 0 && now < canLeaveFrom) {
         phase = "ok";
         msg = `You may not leave before ${hm(new Date(canLeaveFrom))}`;
         sub = `No one may leave during the first ${plural(cfg.first, "minute")}.`;
       } else {
         phase = "ok";
-        msg = "You may leave early if you have finished";
-        sub = cfg.last > 0
-          ? `Raise your hand and wait to be told. No leaving after ${hm(new Date(noLeaveFrom))} (final ${plural(cfg.last, "minute")}).`
-          : "Raise your hand and wait to be told.";
+        msg = fill(msgText("okMsg"));
+        sub = fill(msgText("okSub"));
       }
     } else {
       phase = "end"; label = "Exam finished";
       rem = 0; frac = 1;
-      msg = "Time is up – stop writing now";
-      sub = "Put your pen down and remain seated until your script has been collected.";
+      msg = fill(msgText("endMsg"));
+      sub = fill(msgText("endSub"));
     }
 
     setPhase(phase);
