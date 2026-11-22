@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Affine Transform Explorer</title>
+<!-- home-screen / app mode (code generated for D. Gallichan by Claude, date: 22/11/26):
+     "Add to Home Screen" opens the page without browser bars on iPhone and Android -->
+<link rel="manifest" href="affineTransformApp.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Affine">
+<link rel="apple-touch-icon" href="icons/affine-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/affine-192.png">
 <style>
 :root{
   --bg:#f3f4f7; --panel:#ffffff; --panel2:#f8f9fb; --ink:#16181d; --muted:#626a78; --line:#e3e6eb;
@@ -148,7 +157,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 @media (max-width:900px){
   html{font-size:15px}
   html,body{height:auto}
-  body{display:flex;flex-direction:column;gap:10px;height:auto;min-width:0;min-height:0;padding:10px 12px 14px}
+  body{display:flex;flex-direction:column;gap:10px;height:auto;min-width:0;min-height:0;padding:max(10px,env(safe-area-inset-top)) 12px max(14px,env(safe-area-inset-bottom))}
   .top{flex-wrap:wrap;gap:10px 14px;padding:12px 14px}
   .ttl{flex:1 1 100%}
   .ttl p{white-space:normal;font-size:.9rem}
@@ -207,7 +216,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
   html{font-size:14px}
   html,body{height:100%}
   body{display:block;height:100vh;height:100dvh;min-width:0;min-height:0;overflow:hidden;
-    padding:6px max(8px,env(safe-area-inset-right)) 6px max(8px,env(safe-area-inset-left))}
+    padding:max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
   footer.sig{display:none}
   main{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;height:100%;align-items:stretch}
   .plotcard{position:relative;top:auto;height:100%;width:auto;max-width:56vw;max-height:none;aspect-ratio:1/1;align-self:stretch;box-shadow:var(--shadow)}
@@ -227,6 +236,8 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
   .meter .msg{font-size:.74rem;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .bar{height:7px}
   .btn{font-size:.85rem;padding:0 .8em;min-height:34px}
+  #btnFS[hidden]{display:none}
+  #btnFS{padding:0 .6em;font-size:1.15rem;align-items:center;justify-content:center;line-height:1}
   #btnMore{padding:0 .65em;font-size:1.1rem;align-items:center;justify-content:center;line-height:1}
   .lg{display:none} .sm{display:inline}
   .only-compact{display:flex}
@@ -366,7 +377,8 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
           <button class="btn primary" id="btnRand"><span class="lg">Randomize target house</span><span class="sm">New target</span></button>
           <button class="btn" id="btnReveal" disabled title="Animate the sliders to the target's parameters"><span class="lg">Reveal answer</span><span class="sm">Reveal</span></button>
         </div>
-        <button class="btn only-compact" id="btnMore" aria-label="Options, equation and reset" title="Options">⚙︎</button>
+        <button class="btn only-compact iconish" id="btnFS" hidden aria-label="Full screen" title="Full screen">⛶</button>
+        <button class="btn only-compact iconish" id="btnMore" aria-label="Options, equation and reset" title="Options">⚙︎</button>
       </div>
     </section>
   </div>
@@ -457,6 +469,26 @@ document.addEventListener('click',e=>{ if(document.body.classList.contains('shee
 document.getElementById('optMats').addEventListener('change',e=>document.body.classList.toggle('showmats',e.target.checked));
 COMPACT.addEventListener('change',()=>{ if(!COMPACT.matches) sheetOpen(false); render(); });
 document.getElementById('tipClose').onclick=()=>document.getElementById('rotateTip').remove();
+
+// ---- full screen (Android etc.; iPhone has no element fullscreen, so use Add to Home Screen there) ----
+(()=>{
+  const de=document.documentElement, btn=document.getElementById('btnFS');
+  const req=de.requestFullscreen||de.webkitRequestFullscreen;
+  const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
+  const exit=()=>(document.exitFullscreen||document.webkitExitFullscreen).call(document);
+  const appMode=matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches||navigator.standalone;
+  if(!req||!(document.fullscreenEnabled||document.webkitFullscreenEnabled)||appMode) return;
+  btn.hidden=false;
+  const upd=()=>{const on=!!fsEl(); btn.textContent=on?'✕':'⛶'; btn.title=btn.ariaLabel=on?'Exit full screen':'Full screen';};
+  btn.onclick=async()=>{
+    try{
+      if(fsEl()) await exit();
+      else{ await req.call(de,{navigationUI:'hide'});
+        try{ await screen.orientation.lock('landscape'); }catch(e){} }   // keep it sideways where allowed
+    }catch(e){}
+  };
+  document.addEventListener('fullscreenchange',upd); document.addEventListener('webkitfullscreenchange',upd);
+})();
 function sync(k,fromNum){
   const {r,n,d}=UI[k]; r.value=P[k];
   r.style.setProperty('--p',((P[k]-d.min)/(d.max-d.min)*100)+'%');
