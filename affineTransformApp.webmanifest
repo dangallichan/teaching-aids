@@ -1,0 +1,15 @@
+{
+  "name": "Affine Transform Explorer",
+  "short_name": "Affine",
+  "start_url": "affineTransformApp.html",
+  "scope": "affineTransformApp.html",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#0e1015",
+  "theme_color": "#0e1015",
+  "icons": [
+    {"src": "icons/affine-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icons/affine-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}
