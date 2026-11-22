@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<!-- code generated for D. Gallichan by Claude, date: 22/11/26 -->
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b0d10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Clock</title>
+<style>
+  :root {
+    --bg: #0b0d10;
+    --face: #14181d;
+    --fg: #e9edf1;
+    --muted: #7d8794;
+    --tick: #3a424c;
+    --accent: #ff4d3d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--fg); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4vmin;
+    min-height: 100dvh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
+  }
+  svg.clock { width: min(86vw, 58dvh); height: auto; display: block; }
+  .digital { text-align: center; line-height: 1; }
+  .time {
+    font-size: min(17vw, 11dvh);
+    font-weight: 300;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+  .time .sec { color: var(--accent); }
+  .time .colon { opacity: 0.55; }
+  .date {
+    margin-top: 2.2vmin;
+    font-size: min(5.2vw, 3.4dvh);
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+  /* Landscape: side by side */
+  @media (orientation: landscape) {
+    body { flex-direction: row; gap: 6vw; }
+    svg.clock { width: auto; height: min(84dvh, 44vw); }
+    .time { font-size: min(10vw, 20dvh); }
+    .date { font-size: min(3vw, 6dvh); }
+  }
+</style>
+</head>
+<body>
+
+<svg class="clock" viewBox="-110 -110 220 220" aria-hidden="true">
+  <circle r="104" fill="var(--face)"/>
+  <!-- seconds progress ring -->
+  <circle r="104" fill="none" stroke="#20262d" stroke-width="4"/>
+  <circle id="ring" r="104" fill="none" stroke="var(--accent)" stroke-width="4"
+          stroke-linecap="round" transform="rotate(-90)"
+          stroke-dasharray="653.45" stroke-dashoffset="653.45" opacity="0.85"/>
+  <g id="ticks"></g>
+  <g id="nums" font-size="13" fill="var(--fg)" text-anchor="middle" dominant-baseline="central"></g>
+  <!-- hands -->
+  <line id="hour" x1="0" y1="10" x2="0" y2="-50" stroke="var(--fg)" stroke-width="6" stroke-linecap="round"/>
+  <line id="min"  x1="0" y1="12" x2="0" y2="-76" stroke="var(--fg)" stroke-width="4" stroke-linecap="round"/>
+  <g id="secg">
+    <line x1="0" y1="20" x2="0" y2="-88" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cy="16" r="3" fill="var(--accent)"/>
+  </g>
+  <circle r="4.5" fill="var(--accent)"/>
+  <circle r="1.6" fill="var(--face)"/>
+</svg>
+
+<div class="digital">
+  <div class="time" id="time">--:--:--</div>
+  <div class="date" id="date"></div>
+</div>
+
+<script>
+(function () {
+  const NS = "http://www.w3.org/2000/svg";
+  const ticks = document.getElementById("ticks");
+  const nums = document.getElementById("nums");
+
+  // Build 60 tick marks and 12 numerals
+  for (let i = 0; i < 60; i++) {
+    const major = i % 5 === 0;
+    const l = document.createElementNS(NS, "line");
+    l.setAttribute("x1", 0); l.setAttribute("x2", 0);
+    l.setAttribute("y1", -96); l.setAttribute("y2", major ? -86 : -91);
+    l.setAttribute("stroke", major ? "var(--fg)" : "var(--tick)");
+    l.setAttribute("stroke-width", major ? 2.4 : 1.2);
+    l.setAttribute("stroke-linecap", "round");
+    l.setAttribute("transform", `rotate(${i * 6})`);
+    ticks.appendChild(l);
+  }
+  for (let h = 1; h <= 12; h++) {
+    const a = h * Math.PI / 6;
+    const t = document.createElementNS(NS, "text");
+    t.setAttribute("x", (72 * Math.sin(a)).toFixed(2));
+    t.setAttribute("y", (-72 * Math.cos(a)).toFixed(2));
+    t.textContent = h;
+    nums.appendChild(t);
+  }
+
+  const hourEl = document.getElementById("hour");
+  const minEl  = document.getElementById("min");
+  const secEl  = document.getElementById("secg");
+  const ring   = document.getElementById("ring");
+  const timeEl = document.getElementById("time");
+  const dateEl = document.getElementById("date");
+  const CIRC = 2 * Math.PI * 104;
+
+  const pad = n => String(n).padStart(2, "0");
+  const dateFmt = new Intl.DateTimeFormat("en-GB",
+    { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+  let lastSec = -1;
+
+  function frame() {
+    const now = new Date();
+    const ms = now.getMilliseconds();
+    const s = now.getSeconds();
+    const m = now.getMinutes();
+    const h = now.getHours();
+
+    const sF = s + ms / 1000;          // smooth sweep
+    const mF = m + sF / 60;
+    const hF = (h % 12) + mF / 60;
+
+    secEl.setAttribute("transform", `rotate(${sF * 6})`);
+    minEl.setAttribute("transform", `rotate(${mF * 6})`);
+    hourEl.setAttribute("transform", `rotate(${hF * 30})`);
+    ring.setAttribute("stroke-dashoffset", (CIRC * (1 - sF / 60)).toFixed(2));
+
+    if (s !== lastSec) {
+      lastSec = s;
+      timeEl.innerHTML =
+        `${pad(h)}<span class="colon">:</span>${pad(m)}<span class="colon">:</span><span class="sec">${pad(s)}</span>`;
+      dateEl.textContent = dateFmt.format(now);
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // Keep screen awake where supported (needs https or a local file in some browsers)
+  let lock = null;
+  async function wake() {
+    try {
+      if ("wakeLock" in navigator && !lock) {
+        lock = await navigator.wakeLock.request("screen");
+        lock.addEventListener("release", () => { lock = null; });
+      }
+    } catch (e) { /* not supported or not allowed */ }
+  }
+  wake();
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) wake(); });
+  document.addEventListener("click", wake);
+
+  // Tap-and-hold-free fullscreen: double-tap toggles fullscreen where supported
+  let lastTap = 0;
+  document.addEventListener("touchend", () => {
+    const t = Date.now();
+    if (t - lastTap < 300) {
+      const d = document;
+      if (!d.fullscreenElement && d.documentElement.requestFullscreen) d.documentElement.requestFullscreen().catch(()=>{});
+      else if (d.exitFullscreen) d.exitFullscreen().catch(()=>{});
+    }
+    lastTap = t;
+  });
+})();
+</script>
+</body>
+</html>
