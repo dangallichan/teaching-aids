@@ -5,7 +5,7 @@
   "scope": "affineTransformApp.html",
   "display": "fullscreen",
   "display_override": ["fullscreen", "standalone"],
-  "orientation": "landscape",
+  "orientation": "any",
   "background_color": "#0e1015",
   "theme_color": "#0e1015",
   "icons": [

@@ -149,7 +149,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 .sig a:hover{color:var(--ink)}
 .sig{margin-top:-6px}
 .meter .info{display:contents}
-.only-compact,.sm,.rotate-tip{display:none}
+.only-compact,.sm{display:none}
 
 /* ================= phones & narrow screens ================= */
 /* Single scrolling column. The plot sticks to the top of the screen (portrait) so the house
@@ -203,28 +203,22 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
   .row .trk{height:44px;touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:pointer}
   .btn,.iconbtn,.tg{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 }
-/* portrait phones: suggest rotating */
-@media (orientation:portrait) and (max-width:600px){
-  .rotate-tip{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 8px 8px 14px;font-size:.9rem;font-weight:600;color:var(--house)}
-}
 
-/* ============ landscape phones: plot + all sliders on one screen, no page scrolling ============ */
+/* ============ phones (landscape, and portrait up to 600px wide): plot + all sliders on one screen ============ */
 /* code generated for D. Gallichan by Claude, date: 22/11/26 */
 /* The header (title, equation, toggles, reset) moves into a pop-up sheet behind the ⚙ button,
-   and the per-group matrices are hidden unless "Show matrices" is switched on in that sheet. */
-@media (orientation:landscape) and (max-height:520px){
+   and the per-group matrices are hidden unless "Show matrices" is switched on in that sheet.
+   Shared styling here; the two arrangements are set in the blocks that follow. */
+@media (orientation:landscape) and (max-height:520px), (orientation:portrait) and (max-width:600px){
   html{font-size:14px}
   html,body{height:100%}
   body{display:block;height:100vh;height:100dvh;min-width:0;min-height:0;overflow:hidden;
     padding:max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
   footer.sig{display:none}
-  main{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;height:100%;align-items:stretch}
-  .plotcard{position:relative;top:auto;height:100%;width:auto;max-width:56vw;max-height:none;aspect-ratio:1/1;align-self:stretch;box-shadow:var(--shadow)}
   .legend{left:6px;top:6px;font-size:.68rem;gap:2px;padding:4px 7px;border-radius:7px}
   .legend span{gap:6px}
   .legend i{width:16px;border-top-width:3px}
 
-  .side{display:flex;flex-direction:column;gap:4px;min-height:0;overflow-y:auto;overscroll-behavior:contain;border-radius:12px}
   .card{border-radius:11px}
 
   /* action bar: New target · Reveal · match meter · ⚙ */
@@ -243,7 +237,8 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
   .only-compact{display:flex}
 
   /* slider groups: thin coloured tag, sliders, group reset on the right */
-  .grp{grid-template-columns:1.9rem minmax(0,1fr);flex:1 0 auto;overflow:visible}
+  .grp{grid-template-columns:1.9rem minmax(0,1fr);overflow:visible}
+  .row .trk{touch-action:none}
   .tag{width:1.9rem;font-size:1.1rem;border-radius:11px 0 0 11px}
   .grp .content{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:0;padding:0 0 0 4px}
   .grp header{grid-column:2;grid-row:1}
@@ -256,22 +251,43 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
   .row{grid-template-columns:1.6em minmax(0,1fr) 3.7em;column-gap:6px}
   .row .scale{display:none}
   .row label{font-size:1.1rem}
-  .row .trk{height:38px;height:clamp(28px,calc((100dvh - 104px)/7),38px);touch-action:none}
   .num{font-size:.78rem;padding:3px 4px}
 
   /* the old header becomes a pop-up sheet */
   .top{display:none}
   body.sheet::before{content:"";position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:40}
-  body.sheet .top{display:flex;flex-direction:column;align-items:flex-start;gap:12px;position:fixed;z-index:50;
-    top:8px;bottom:8px;left:50%;transform:translateX(-50%);width:min(560px,calc(100vw - 24px));overflow-y:auto;padding:14px 18px 16px;
+  body.sheet .top{display:flex;flex-direction:column;flex-wrap:nowrap;align-items:flex-start;gap:12px;position:fixed;z-index:50;
+    top:max(8px,env(safe-area-inset-top));max-height:calc(100dvh - 16px);left:50%;transform:translateX(-50%);width:min(560px,calc(100vw - 24px));overflow-y:auto;padding:14px 18px 16px;
     box-shadow:0 10px 30px rgba(0,0,0,.3)}
   .top .ttl{flex:none}
+  .top .spacer{display:none}
   .top .ttl p{display:none}
   .top .eq{flex:none;align-self:center;border:none;padding:0;zoom:.85}
   .top .toggles{flex-direction:column;gap:12px}
   .tg{font-size:1rem}
   .sheetclose{position:absolute;top:8px;right:8px;font-size:1.2rem;min-width:40px;min-height:40px;align-items:center;justify-content:center}
   .top .sig{display:block;margin:0;text-align:left;font-size:.75rem}
+}
+/* landscape phones: square plot left, controls right, no scrolling */
+@media (orientation:landscape) and (max-height:520px){
+  main{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;height:100%;align-items:stretch}
+  .plotcard{position:relative;top:auto;height:100%;width:auto;max-width:56vw;max-height:none;aspect-ratio:1/1;align-self:stretch;box-shadow:var(--shadow)}
+  .side{display:flex;flex-direction:column;gap:4px;min-height:0;overflow-y:auto;overscroll-behavior:contain;border-radius:12px}
+  .grp{flex:1 0 auto}
+  .row .trk{height:38px;height:clamp(28px,calc((100dvh - 104px)/7),38px)}
+}
+/* portrait phones: action bar on top, plot fills the middle, sliders at the bottom (thumb reach).
+   .side is flattened so its action bar can sit above the plot. Page scrolls only if very short. */
+@media (orientation:portrait) and (max-width:600px){
+  body{overflow-y:auto}
+  main{display:flex;flex-direction:column;gap:5px;height:100%}
+  .side{display:contents}
+  .comp{order:-2;position:relative;top:auto}
+  .plotcard{order:-1;position:relative;top:auto;z-index:auto;width:100%;max-width:none;aspect-ratio:auto;align-self:stretch;
+    flex:1 1 auto;min-height:220px;max-height:100vw;box-shadow:var(--shadow)}
+  .grp{flex:none}
+  .row .trk{height:36px;height:clamp(32px,calc((100dvh - 330px)/7),36px)}
+  .meter .msg .wide{display:none}
 }
 @media (orientation:landscape) and (max-height:520px) and (max-width:760px){
   .meter .msg .wide{display:none}
@@ -281,7 +297,6 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 </head>
 <body>
 
-<div class="card rotate-tip" id="rotateTip"><span>↻ Turn your phone sideways for the best view</span><button class="iconbtn" id="tipClose" aria-label="Dismiss">✕</button></div>
 
 <div class="card top" id="sheet">
   <button class="iconbtn only-compact sheetclose" id="sheetClose" aria-label="Close">✕</button>
@@ -460,15 +475,14 @@ function touchSlider(trk,r,d){
   trk.addEventListener('pointerup',end); trk.addEventListener('pointercancel',()=>{id=null;live=false;});
 }
 
-// ---- landscape-phone layout: options sheet, matrices toggle, rotate tip ----
-const COMPACT=matchMedia('(orientation:landscape) and (max-height:520px)');
+// ---- phone layouts: options sheet, matrices toggle ----
+const COMPACT=matchMedia('(orientation:landscape) and (max-height:520px), (orientation:portrait) and (max-width:600px)');
 const sheetOpen=on=>document.body.classList.toggle('sheet',on);
 document.getElementById('btnMore').onclick=e=>{e.stopPropagation(); sheetOpen(!document.body.classList.contains('sheet'));};
 document.getElementById('sheetClose').onclick=()=>sheetOpen(false);
 document.addEventListener('click',e=>{ if(document.body.classList.contains('sheet') && !e.target.closest('#sheet')) sheetOpen(false); });
 document.getElementById('optMats').addEventListener('change',e=>document.body.classList.toggle('showmats',e.target.checked));
 COMPACT.addEventListener('change',()=>{ if(!COMPACT.matches) sheetOpen(false); render(); });
-document.getElementById('tipClose').onclick=()=>document.getElementById('rotateTip').remove();
 
 // ---- full screen (Android etc.; iPhone has no element fullscreen, so use Add to Home Screen there) ----
 (()=>{
@@ -484,7 +498,7 @@ document.getElementById('tipClose').onclick=()=>document.getElementById('rotateT
     try{
       if(fsEl()) await exit();
       else{ await req.call(de,{navigationUI:'hide'});
-        try{ await screen.orientation.lock('landscape'); }catch(e){} }   // keep it sideways where allowed
+        if(innerWidth>innerHeight) try{ await screen.orientation.lock('landscape'); }catch(e){} }   // keep it sideways where allowed
     }catch(e){}
   };
   document.addEventListener('fullscreenchange',upd); document.addEventListener('webkitfullscreenchange',upd);
@@ -584,7 +598,7 @@ function draw(M){
   const dpr=window.devicePixelRatio||1, W=card.clientWidth, H=card.clientHeight;
   cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
   const c=cv.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,W,H);
-  const pad=34, side=Math.max(60,Math.min(W,H)-2*pad);
+  const pad=Math.min(W,H)<480?22:34, side=Math.max(60,Math.min(W,H)-2*pad);
   const L=(W-side)/2, T=(H-side)/2, X=v=>L+(v+4)/8*side, Y=v=>T+side-(v+4)/8*side, u=side/8;
   const col={grid:css('--grid'),major:css('--gridMajor'),axis:css('--axis'),muted:css('--muted'),ink:css('--ink'),
     house:css('--house'),target:css('--target'),ghost:css('--ghost'),S:css('--cS'),H:css('--cH'),R:css('--cR'),panel:css('--panel')};
