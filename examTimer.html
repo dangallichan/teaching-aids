@@ -49,6 +49,14 @@
     background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
     padding: 2vh 2vw; text-align: center;
   }
+  .times.with-code { grid-template-columns: 1fr 1fr 1.25fr; }
+  #codeCard { display: none; border-color: #6aa8ff; }
+  .times.with-code #codeCard { display: block; }
+  #codeVal {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    letter-spacing: 0.08em; color: #9cc5ff; overflow-wrap: anywhere;
+  }
+  #codeVal.hidden { color: var(--muted); font-family: inherit; letter-spacing: 0; font-size: 0.5em; }
   .label {
     font-size: clamp(14px, 1.5vw, 26px); color: var(--muted);
     text-transform: uppercase; letter-spacing: 0.12em;
@@ -138,6 +146,7 @@
   <div class="times">
     <div class="card"><div class="label">Start time</div><div class="val" id="startVal">--:--</div></div>
     <div class="card"><div class="label">End time</div><div class="val" id="endVal">--:--</div></div>
+    <div class="card" id="codeCard"><div class="label">Access code</div><div class="val" id="codeVal"></div></div>
   </div>
 
   <div class="remaining">
@@ -182,6 +191,17 @@
         <option value="computer">Computer-based exam</option>
       </select>
     </label>
+    <div class="row">
+      <label>Access code (optional)
+        <input id="fCode" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. 7XK2-91">
+      </label>
+      <label>Show access code
+        <select id="fCodeWhen">
+          <option value="always">Before and during exam</option>
+          <option value="started">Only once exam has started</option>
+        </select>
+      </label>
+    </div>
     <details id="msgBox">
       <summary>Edit messages shown to students</summary>
       <div class="hint">Placeholders: {start} {end} {cutoff} (time leaving stops) {last} (minutes). If "No leaving in final" is 0, sentences that mention {cutoff} or {last} are dropped automatically.</div>
@@ -200,7 +220,7 @@
     </details>
     <div class="hint" id="endPreview"></div>
     <div class="hint">Settings are saved in the page link, so you can bookmark a configured exam.
-      Shortcuts: <b>S</b> settings, <b>F</b> fullscreen.</div>
+      Shortcuts: <b>S</b> settings, <b>F</b> fullscreen, <b>C</b> hide/show access code.</div>
     <div class="actions">
       <button type="button" id="btnCancel">Cancel</button>
       <button type="submit" class="primary">Start display</button>
@@ -244,7 +264,7 @@
   function defaults() {
     const d = new Date(Date.now() + 5 * 60000);
     d.setMinutes(Math.ceil(d.getMinutes() / 5) * 5, 0, 0);
-    return { title: "Exam", start: hm(d), dur: 120, last: 15, first: 0, type: "paper", msgs: {} };
+    return { title: "Exam", start: hm(d), dur: 120, last: 15, first: 0, type: "paper", msgs: {}, code: "", codeWhen: "always" };
   }
   function readConfig() {
     const p = new URLSearchParams(location.search);
@@ -258,18 +278,21 @@
         last: p.has("last") ? +p.get("last") : 15,
         first: p.has("first") ? +p.get("first") : 0,
         type: PRESETS[p.get("type")] ? p.get("type") : "paper",
+        code: p.get("code") || "",
+        codeWhen: p.get("codeWhen") === "started" ? "started" : "always",
         msgs,
       };
     }
     try {
       const s = JSON.parse(localStorage.getItem("examTimerCfg") || "null");
-      if (s && s.start && s.dur) return Object.assign({ type: "paper", msgs: {} }, s);
+      if (s && s.start && s.dur) return Object.assign({ type: "paper", msgs: {}, code: "", codeWhen: "always" }, s);
     } catch (e) {}
     return null;
   }
   function saveConfig(c) {
     const p = new URLSearchParams({ title: c.title, start: c.start, dur: c.dur, last: c.last, first: c.first, type: c.type });
     // only store messages that differ from the preset, to keep links short
+    if (c.code) { p.set("code", c.code); p.set("codeWhen", c.codeWhen); }
     MSG_KEYS.forEach(k => { if (c.msgs[k] !== undefined) p.set(k, c.msgs[k]); });
     history.replaceState(null, "", location.pathname + "?" + p.toString());
     try { localStorage.setItem("examTimerCfg", JSON.stringify(c)); } catch (e) {}
@@ -299,6 +322,8 @@
     $("fLast").value = c.last;
     $("fFirst").value = c.first;
     $("fType").value = c.type || "paper";
+    $("fCode").value = c.code || "";
+    $("fCodeWhen").value = c.codeWhen || "always";
     MSG_KEYS.forEach(k => {
       $("m_" + k).value = (c.msgs && c.msgs[k] !== undefined) ? c.msgs[k] : PRESETS[$("fType").value][k];
     });
@@ -329,6 +354,8 @@
       first: Math.max(0, Math.round(+$("fFirst").value || 0)),
       type: $("fType").value,
       msgs: {},
+      code: $("fCode").value.trim(),
+      codeWhen: $("fCodeWhen").value,
     };
     MSG_KEYS.forEach(k => {
       const v = $("m_" + k).value.trim();
@@ -359,6 +386,7 @@
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === "s" || e.key === "S") { e.preventDefault(); openSetup(); }
     if (e.key === "f" || e.key === "F") { e.preventDefault(); toggleFull(); }
+    if (e.key === "c" || e.key === "C") { e.preventDefault(); codeHidden = !codeHidden; tick(); }
   });
 
   // ---- Main loop ----
@@ -386,6 +414,15 @@
   }
 
   var lastKey = "";
+  var codeHidden = false;
+  function updateCode(phase) {
+    const show = !!cfg.code && phase !== "end" && !(cfg.codeWhen === "started" && phase === "pre");
+    $("codeCard").parentElement.classList.toggle("with-code", show);
+    const el = $("codeVal");
+    el.classList.toggle("hidden", codeHidden);
+    const txt = codeHidden ? "hidden – press C to show" : cfg.code;
+    if (el.textContent !== txt) el.textContent = txt;
+  }
   function tick() {
     const nowD = new Date();
     const now = nowD.getTime();
@@ -428,6 +465,7 @@
     }
 
     setPhase(phase);
+    updateCode(phase);
     $("remLabel").textContent = label;
     $("remaining").textContent = fmtDur(rem);
     $("fill").style.width = (frac * 100).toFixed(3) + "%";
