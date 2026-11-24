@@ -154,18 +154,26 @@
   requestAnimationFrame(frame);
 
   // Keep screen awake where supported (needs https or a local file in some browsers)
+  // Wake lock made more robust on iOS 24/11/26 - code generated for D. Gallichan by Claude, date: 24/11/26
+  // iOS: works in Safari from 16.4, but in Home Screen mode only from iOS 18.4.
+  // iOS can also refuse a request made straight after returning to the page, and taps on a
+  // plain page don't always fire "click", so any touch/pointer gesture also asks again.
   let lock = null;
+  let pending = false;
   async function wake() {
+    if (!("wakeLock" in navigator) || lock || pending || document.hidden) return;
+    pending = true;
     try {
-      if ("wakeLock" in navigator && !lock) {
-        lock = await navigator.wakeLock.request("screen");
-        lock.addEventListener("release", () => { lock = null; });
-      }
-    } catch (e) { /* not supported or not allowed */ }
+      lock = await navigator.wakeLock.request("screen");
+      lock.addEventListener("release", () => { lock = null; });
+    } catch (e) { /* not supported or not allowed yet - next gesture will retry */ }
+    pending = false;
   }
   wake();
   document.addEventListener("visibilitychange", () => { if (!document.hidden) wake(); });
-  document.addEventListener("click", wake);
+  window.addEventListener("pageshow", wake);
+  ["click", "touchend", "pointerup", "keydown"].forEach(ev =>
+    document.addEventListener(ev, wake, { passive: true }));
 
   // Tap-and-hold-free fullscreen: double-tap toggles fullscreen where supported
   let lastTap = 0;
