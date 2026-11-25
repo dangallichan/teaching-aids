@@ -31,6 +31,8 @@
   header h1 { font-size: 15px; font-weight: 600; margin: 0 12px 0 0; letter-spacing: .2px; }
   header .privacy { background: #183a2a; color: #8be0b0; border: 1px solid #2b6b4a; border-radius: 12px;
                     padding: 3px 10px; font-size: 12px; white-space: nowrap; }
+  header .unverified { background: #3d2e12; color: #ffcf7a; border: 1px solid #7a5a1e; border-radius: 12px;
+                       padding: 3px 10px; font-size: 12px; white-space: nowrap; cursor: help; }
   header .info { color: var(--muted); margin-left: auto; font-size: 12px; }
   button, .btn {
     background: var(--panel2); color: var(--text); border: 1px solid var(--line);
@@ -90,6 +92,8 @@
   .dropbox .lock { color: #8be0b0; font-weight: 600; font-size: 15px; }
   .dropbox p { margin: 8px 0 0; color: var(--muted); }
   .dropbox p b { color: var(--text); }
+  .dropbox p.disclaimer { color: #ffcf7a; border-top: 1px solid var(--line); padding-top: 8px; }
+  .dropbox p.disclaimer b { color: #ffcf7a; }
   .dropbox .small { font-size: 11.5px; }
   .views .drop { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
                 color: var(--muted); text-align: center; pointer-events: none; padding: 20px; line-height: 1.6; }
@@ -134,6 +138,7 @@
   <input type="file" id="fileInput" multiple hidden accept=".dcm,.DCM,.ima,.nii,.gz,.png,.jpg,.jpeg,.bmp,.gif,.webp,application/dicom,*/*">
   <input type="file" id="folderInput" webkitdirectory multiple hidden>
   <span class="privacy" title="This page is blocked by its own Content-Security-Policy from contacting any server.">🔒 Local only — your images never leave this computer</span>
+  <span class="unverified" title="This tool has not been verified by its author (D. Gallichan). It is provided for teaching and demonstration only, without warranty, and must not be used for clinical or diagnostic purposes.">⚠ Not verified — teaching use only</span>
   <span class="info" id="info">No image loaded.</span>
 </header>
 
@@ -199,6 +204,8 @@
           <p>Files you open are read and processed <b>entirely inside your browser</b>. Nothing is uploaded or sent anywhere —
           the page is blocked (by its own Content-Security-Policy) from contacting any server, and it keeps working with the network disconnected.</p>
           <p>Drop DICOM / NIfTI / PNG / JPEG files (or a DICOM folder) here,<br>or use <b>Open file(s)</b> or <b>Demo phantom</b>.</p>
+          <p class="disclaimer">⚠ <b>Disclaimer:</b> this tool has not been verified by its author (D. Gallichan).
+          It is provided for teaching and demonstration only, without warranty — do not use it for clinical or diagnostic purposes.</p>
           <p class="small">Still follow your local rules for patient data: anonymised data are recommended, and browser extensions you have installed can see any page you view.</p>
         </div></div>
     </div>

@@ -44,7 +44,7 @@ https://github.com/user-attachments/assets/6a5e71e9-370d-4910-a209-5ddfa6a0cf8e
 
 [https://dangallichan.github.io/teaching-aids/affineTransformApp.html](https://dangallichan.github.io/teaching-aids/affineTransformApp.html)
 
-[https://dangallichan.github.io/teaching-aids/medicalImageProcessor.html](https://dangallichan.github.io/teaching-aids/medicalImageProcessor.html) — load DICOM / NIfTI / PNG and explore filtering, custom kernels, windowing and histogram equalisation (all processed locally in the browser)
+[https://dangallichan.github.io/teaching-aids/medicalImageProcessor.html](https://dangallichan.github.io/teaching-aids/medicalImageProcessor.html) — load DICOM / NIfTI / PNG and explore filtering, custom kernels, windowing and histogram equalisation (all processed locally in the browser). *Not verified by me — teaching/demonstration use only, not for clinical or diagnostic use.*
 
 
 
