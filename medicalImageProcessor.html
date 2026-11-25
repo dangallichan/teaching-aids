@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Privacy guarantee enforced by the browser: this page may not contact ANY server (no fetch/XHR/websockets,
+     no external scripts, styles, fonts or images, no form submission). Image files are only read locally. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
 <title>Medical Image Processor</title>
 <!--
   Medical Image Processor — single-file browser version.
@@ -26,6 +29,8 @@
     background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap;
   }
   header h1 { font-size: 15px; font-weight: 600; margin: 0 12px 0 0; letter-spacing: .2px; }
+  header .privacy { background: #183a2a; color: #8be0b0; border: 1px solid #2b6b4a; border-radius: 12px;
+                    padding: 3px 10px; font-size: 12px; white-space: nowrap; }
   header .info { color: var(--muted); margin-left: auto; font-size: 12px; }
   button, .btn {
     background: var(--panel2); color: var(--text); border: 1px solid var(--line);
@@ -73,14 +78,20 @@
   .kgrid input.c { border-color: #b88a2c; }
 
   .center { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-  .views { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: #000; min-height: 200px; }
+  .views { position: relative; flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: #000; min-height: 200px; }
   .view { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
   .view canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; }
   .view canvas.dragging { cursor: grabbing; }
   .view .tag { position: absolute; left: 8px; top: 6px; color: #ffd54a; font-weight: 600;
                pointer-events: none; text-shadow: 0 0 3px #000; }
-  .view .drop[hidden] { display: none; }
-  .view .drop { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  .views .drop[hidden] { display: none; }
+  .dropbox { max-width: 440px; background: rgba(28,32,39,.92); border: 1px solid #2b6b4a; border-radius: 10px;
+             padding: 14px 18px; color: var(--text); }
+  .dropbox .lock { color: #8be0b0; font-weight: 600; font-size: 15px; }
+  .dropbox p { margin: 8px 0 0; color: var(--muted); }
+  .dropbox p b { color: var(--text); }
+  .dropbox .small { font-size: 11.5px; }
+  .views .drop { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
                 color: var(--muted); text-align: center; pointer-events: none; padding: 20px; line-height: 1.6; }
   .histwrap { height: 230px; background: var(--panel); border-top: 1px solid var(--line); display: flex;
               flex-direction: column; padding: 6px 10px 4px; }
@@ -122,7 +133,8 @@
   <button id="btnExport" disabled>Export processed PNG</button>
   <input type="file" id="fileInput" multiple hidden accept=".dcm,.DCM,.ima,.nii,.gz,.png,.jpg,.jpeg,.bmp,.gif,.webp,application/dicom,*/*">
   <input type="file" id="folderInput" webkitdirectory multiple hidden>
-  <span class="info" id="info">No image loaded — all processing is local; nothing is uploaded.</span>
+  <span class="privacy" title="This page is blocked by its own Content-Security-Policy from contacting any server.">🔒 Local only — your images never leave this computer</span>
+  <span class="info" id="info">No image loaded.</span>
 </header>
 
 <main>
@@ -180,8 +192,15 @@
   <div class="center">
     <div class="views" id="views">
       <div class="view"><canvas id="cvO"></canvas><span class="tag">Original</span>
-        <div class="drop" id="dropMsg"><div>Drop DICOM / NIfTI / PNG / JPEG files (or a DICOM folder) here<br>or use <b>Open file(s)</b> or <b>Demo phantom</b></div></div></div>
+</div>
       <div class="view"><canvas id="cvP"></canvas><span class="tag">Processed</span></div>
+      <div class="drop" id="dropMsg"><div class="dropbox">
+          <div class="lock">🔒 Your data stay on this computer</div>
+          <p>Files you open are read and processed <b>entirely inside your browser</b>. Nothing is uploaded or sent anywhere —
+          the page is blocked (by its own Content-Security-Policy) from contacting any server, and it keeps working with the network disconnected.</p>
+          <p>Drop DICOM / NIfTI / PNG / JPEG files (or a DICOM folder) here,<br>or use <b>Open file(s)</b> or <b>Demo phantom</b>.</p>
+          <p class="small">Still follow your local rules for patient data: anonymised data are recommended, and browser extensions you have installed can see any page you view.</p>
+        </div></div>
     </div>
     <div class="histwrap">
       <div class="row">
@@ -1151,9 +1170,21 @@ function renderEditor() {
   }
 }
 
+/** Tiny arithmetic parser for kernel cells (numbers, + - * / and brackets) — no eval. */
 function safeEval(str) {
-  if (!/^[\d\s+\-*/().eE]*$/.test(str) || !str.trim()) return NaN;
-  try { return Function(`"use strict";return (${str})`)(); } catch { return NaN; }
+  const toks = str.match(/\d*\.?\d+(?:[eE][+-]?\d+)?|[-+*/()]|\S/g) || [];
+  let i = 0;
+  const peek = () => toks[i], next = () => toks[i++];
+  const factor = () => {
+    const t = next();
+    if (t === "-") return -factor();
+    if (t === "+") return factor();
+    if (t === "(") { const v = expr(); if (next() !== ")") throw 0; return v; }
+    const v = Number(t); if (t === undefined || !Number.isFinite(v)) throw 0; return v;
+  };
+  const term = () => { let v = factor(); while (peek() === "*" || peek() === "/") v = next() === "*" ? v * factor() : v / factor(); return v; };
+  const expr = () => { let v = term(); while (peek() === "+" || peek() === "-") v = next() === "+" ? v + term() : v - term(); return v; };
+  try { const v = expr(); return i === toks.length ? v : NaN; } catch { return NaN; }
 }
 function renderKernelEditor(ed, p) {
   const top = document.createElement("div"); top.className = "row";
