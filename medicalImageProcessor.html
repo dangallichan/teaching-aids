@@ -1033,7 +1033,8 @@ function drawHistogram() {
   const ymax = Math.max(...ho, ...hp) || 1;
   const L = 52, R = 10, T = 6, B = 22, pw = w - L - R, ph = h - T - B;
   const X = v => L + (v - lo) / (hi - lo) * pw, Y = c => T + ph - c / ymax * ph;
-  histGeom = { X, inv: x => lo + (x - L) / pw * (hi - lo) };
+  const clampX = x => Math.min(L + pw, Math.max(L, x));
+  histGeom = { X, clampX, L, pw, inv: x => lo + (x - L) / pw * (hi - lo) };
   // axes
   ctx.strokeStyle = "#3a404b"; ctx.lineWidth = 1; ctx.fillStyle = "#8d95a3"; ctx.font = "11px system-ui";
   ctx.beginPath(); ctx.moveTo(L, T); ctx.lineTo(L, T + ph); ctx.lineTo(L + pw, T + ph); ctx.stroke();
@@ -1052,12 +1053,19 @@ function drawHistogram() {
     ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 1.2; ctx.stroke();
   }
   // window lines
-  ctx.setLineDash([5, 4]); ctx.strokeStyle = "#e3e6eb"; ctx.lineWidth = 1.3;
+  // window lines; a limit beyond the plotted range is pinned to the edge (amber, with an arrow)
+  // and stays draggable from there
   for (const v of [S.wc - S.ww / 2, S.wc + S.ww / 2]) {
-    const x = Math.min(L + pw, Math.max(L, X(v)));
-    ctx.beginPath(); ctx.moveTo(x, T); ctx.lineTo(x, T + ph); ctx.stroke();
+    const x = clampX(X(v)), off = x !== X(v), dir = X(v) < L ? -1 : 1;
+    ctx.setLineDash([5, 4]); ctx.strokeStyle = off ? "#ffb84d" : "#e3e6eb"; ctx.lineWidth = 1.3;
+    ctx.beginPath(); ctx.moveTo(x, T); ctx.lineTo(x, T + ph); ctx.stroke(); ctx.setLineDash([]);
+    if (off) {
+      ctx.fillStyle = "#ffb84d";
+      ctx.beginPath(); ctx.moveTo(x + dir * 9, T + 12); ctx.lineTo(x, T + 6); ctx.lineTo(x, T + 18); ctx.closePath(); ctx.fill();
+      ctx.font = "11px system-ui"; ctx.textBaseline = "middle"; ctx.textAlign = dir < 0 ? "left" : "right";
+      ctx.fillText(fmt(v), x - dir * 4, T + 30);
+    }
   }
-  ctx.setLineDash([]);
 }
 function niceTicks(a, b, n) {
   const span = b - a; if (!(span > 0)) return [a];
@@ -1069,16 +1077,18 @@ function niceTicks(a, b, n) {
 hcv.addEventListener("pointerdown", e => {
   if (!histGeom) return;
   const x = e.clientX - hcv.getBoundingClientRect().left;
-  const xl = histGeom.X(S.wc - S.ww / 2), xh = histGeom.X(S.wc + S.ww / 2);
+  const xl = histGeom.clampX(histGeom.X(S.wc - S.ww / 2)), xh = histGeom.clampX(histGeom.X(S.wc + S.ww / 2));
   const dl = Math.abs(x - xl), dh = Math.abs(x - xh);
   if (Math.min(dl, dh) > 10) return;
-  histDrag = dl < dh ? "lo" : "hi"; hcv.setPointerCapture(e.pointerId);
+  if (Math.abs(xl - xh) < 1) histDrag = xl <= histGeom.L + histGeom.pw / 2 ? "hi" : "lo";  // both pinned together: grab the one that can move inwards
+  else histDrag = dl < dh ? "lo" : "hi";
+  hcv.setPointerCapture(e.pointerId);
 });
 hcv.addEventListener("pointermove", e => {
   if (!histGeom) return;
   const x = e.clientX - hcv.getBoundingClientRect().left;
   if (!histDrag) {
-    const near = Math.min(Math.abs(x - histGeom.X(S.wc - S.ww / 2)), Math.abs(x - histGeom.X(S.wc + S.ww / 2))) <= 10;
+    const g = histGeom, near = Math.min(Math.abs(x - g.clampX(g.X(S.wc - S.ww / 2))), Math.abs(x - g.clampX(g.X(S.wc + S.ww / 2)))) <= 10;
     hcv.style.cursor = near ? "ew-resize" : "default"; return;
   }
   let lo = S.wc - S.ww / 2, hi = S.wc + S.ww / 2;
