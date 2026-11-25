@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Medical Image Processor</title>
+<!--
+  Medical Image Processor — single-file browser version.
+  Loads DICOM (uncompressed / deflated; single, multi-frame or series), NIfTI (.nii/.nii.gz),
+  PNG/JPEG. All processing happens locally in the browser: no data leave the machine.
+  code generated for D. Gallichan by Claude, date: 25/11/26
+-->
+<style>
+  :root {
+    --bg: #14171c; --panel: #1c2027; --panel2: #232831; --line: #323843;
+    --text: #e3e6eb; --muted: #8d95a3; --accent: #4fa3ff; --accent2: #ff6b5b;
+    --input: #12151a;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 13px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); }
+  body { display: flex; flex-direction: column; }
+  header {
+    display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+    background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap;
+  }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0 12px 0 0; letter-spacing: .2px; }
+  header .info { color: var(--muted); margin-left: auto; font-size: 12px; }
+  button, .btn {
+    background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 5px; padding: 5px 10px; font: inherit; cursor: pointer; white-space: nowrap;
+  }
+  button:hover, .btn:hover { border-color: var(--accent); }
+  button.primary { background: #1f4f86; border-color: #2c6db8; }
+  button:disabled { opacity: .45; cursor: default; }
+  input, select {
+    background: var(--input); color: var(--text); border: 1px solid var(--line);
+    border-radius: 4px; padding: 4px 6px; font: inherit; min-width: 0;
+  }
+  input[type=range] { padding: 0; accent-color: var(--accent); }
+  input[type=checkbox] { accent-color: var(--accent); }
+  main {
+    flex: 1; display: grid; min-height: 0;
+    grid-template-columns: 330px 1fr 320px;
+  }
+  .side { overflow-y: auto; background: var(--panel); border-right: 1px solid var(--line); }
+  .side.right { border-right: 0; border-left: 1px solid var(--line); display: flex; flex-direction: column; }
+  section { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  section h2 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted);
+    margin: 0 0 8px; font-weight: 600;
+  }
+  .row { display: flex; align-items: center; gap: 6px; margin: 5px 0; }
+  .row label.l { width: 92px; color: var(--muted); flex: none; }
+  .row > input[type=range] { flex: 1; }
+  .row > input[type=number] { width: 90px; }
+  .row .val { width: 54px; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .hint { color: var(--muted); font-size: 12px; line-height: 1.4; margin: 6px 0 0; }
+  .grow { flex: 1; }
+
+  #steps { list-style: none; margin: 6px 0; padding: 0; border: 1px solid var(--line); border-radius: 5px;
+           min-height: 34px; background: var(--input); }
+  #steps li { display: flex; align-items: center; gap: 6px; padding: 5px 7px; cursor: pointer;
+              border-bottom: 1px solid var(--line); }
+  #steps li:last-child { border-bottom: 0; }
+  #steps li.sel { background: #1d3b5e; }
+  #steps li .lab { flex: 1; }
+  #steps .empty { color: var(--muted); padding: 8px; cursor: default; }
+  #editor { margin-top: 8px; padding: 8px; background: var(--panel2); border-radius: 6px; }
+  .kgrid { display: grid; gap: 3px; margin: 6px 0; }
+  .kgrid input { width: 100%; text-align: center; padding: 4px 2px; font-variant-numeric: tabular-nums; }
+  .kgrid input.c { border-color: #b88a2c; }
+
+  .center { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .views { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: #000; min-height: 200px; }
+  .view { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+  .view canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  .view canvas.dragging { cursor: grabbing; }
+  .view .tag { position: absolute; left: 8px; top: 6px; color: #ffd54a; font-weight: 600;
+               pointer-events: none; text-shadow: 0 0 3px #000; }
+  .view .drop[hidden] { display: none; }
+  .view .drop { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+                color: var(--muted); text-align: center; pointer-events: none; padding: 20px; line-height: 1.6; }
+  .histwrap { height: 230px; background: var(--panel); border-top: 1px solid var(--line); display: flex;
+              flex-direction: column; padding: 6px 10px 4px; }
+  .histwrap .row { margin: 0 0 4px; }
+  #hist { flex: 1; width: 100%; min-height: 0; touch-action: none; }
+  .legend { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); }
+  .sw { width: 12px; height: 10px; border-radius: 2px; display: inline-block; }
+  #readout { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; min-height: 16px; }
+
+  .tabs { display: flex; border-bottom: 1px solid var(--line); }
+  .tabs button { border: 0; border-radius: 0; background: transparent; padding: 9px 12px; color: var(--muted);
+                 border-bottom: 2px solid transparent; }
+  .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
+  .tabpane { flex: 1; overflow: auto; padding: 8px 10px; min-height: 0; }
+  table.meta { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.meta td { padding: 4px 4px; border-bottom: 1px solid var(--line); vertical-align: top; word-break: break-word; }
+  table.meta td:first-child { color: var(--muted); width: 45%; }
+  pre#dump { margin: 0; font: 11px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace; white-space: pre; }
+  .err { color: var(--accent2); }
+
+  @media (max-width: 1180px) {
+    main { grid-template-columns: 300px 1fr; grid-template-rows: 1fr auto; }
+    .side.right { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); max-height: 300px; }
+  }
+  @media (max-width: 760px) {
+    main { display: flex; flex-direction: column; overflow-y: auto; }
+    .side { border-right: 0; overflow: visible; }
+    .center { min-height: 640px; order: -1; }
+    .views { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Medical Image Processor</h1>
+  <button class="primary" id="btnOpen">Open file(s)…</button>
+  <button id="btnFolder">Open DICOM folder…</button>
+  <button id="btnDemo">Demo phantom</button>
+  <button id="btnExport" disabled>Export processed PNG</button>
+  <input type="file" id="fileInput" multiple hidden accept=".dcm,.DCM,.ima,.nii,.gz,.png,.jpg,.jpeg,.bmp,.gif,.webp,application/dicom,*/*">
+  <input type="file" id="folderInput" webkitdirectory multiple hidden>
+  <span class="info" id="info">No image loaded — all processing is local; nothing is uploaded.</span>
+</header>
+
+<main>
+  <!-- ======================= LEFT: controls ======================= -->
+  <div class="side">
+    <section>
+      <h2>Slice</h2>
+      <div class="row"><label class="l">View</label>
+        <select id="axis" class="grow" disabled><option>axial</option><option>coronal</option><option>sagittal</option></select></div>
+      <div class="row"><label class="l">Slice</label><input type="range" id="slice" min="0" max="0" value="0" disabled><span class="val" id="sliceVal">–</span></div>
+      <div class="row"><label class="l">Volume (4D)</label><input type="range" id="frame" min="0" max="0" value="0" disabled><span class="val" id="frameVal">–</span></div>
+    </section>
+
+    <section>
+      <h2>Display — window / level (does not change data)</h2>
+      <div class="row"><label class="l">Centre (level)</label><input type="number" id="wc" step="any" class="grow"></div>
+      <div class="row"><label class="l">Width</label><input type="number" id="ww" step="any" min="0" class="grow"></div>
+      <div class="row">
+        <select id="wpreset" class="grow">
+          <option value="">Presets…</option>
+          <option value="auto">Auto (1–99%)</option>
+          <option value="full">Full range</option>
+          <option value="dicom">DICOM header</option>
+          <option value="40,80">Brain (40/80)</option>
+          <option value="75,215">Subdural (75/215)</option>
+          <option value="40,400">Soft tissue (40/400)</option>
+          <option value="-600,1500">Lung (−600/1500)</option>
+          <option value="400,1800">Bone (400/1800)</option>
+        </select>
+      </div>
+      <div class="row"><label class="l">Gamma</label><input type="range" id="gamma" min="0.1" max="3" step="0.05" value="1"><span class="val" id="gammaVal">1.00</span></div>
+      <div class="row"><label><input type="checkbox" id="autoProc"> Auto window processed image separately</label></div>
+      <div class="row"><label><input type="checkbox" id="smooth"> Smooth (interpolated) display</label></div>
+      <p class="hint">Right-drag (or Shift-drag) on an image: horizontal = width, vertical = level. Wheel/pinch to zoom, drag to pan, double-click to reset.</p>
+    </section>
+
+    <section>
+      <h2>Processing chain (applied top to bottom)</h2>
+      <div class="row">
+        <select id="addType" class="grow"></select>
+        <button id="btnAdd">Add</button>
+      </div>
+      <ul id="steps"></ul>
+      <div class="row">
+        <button id="btnUp" title="Move up">▲</button><button id="btnDown" title="Move down">▼</button>
+        <button id="btnRemove" class="grow">Remove</button><button id="btnClear" class="grow">Clear</button>
+      </div>
+      <div class="row"><label class="l">Boundary</label>
+        <select id="boundary" class="grow"><option>Zero</option><option>Replicate</option><option selected>Reflect</option></select></div>
+      <div id="editor"></div>
+    </section>
+  </div>
+
+  <!-- ======================= CENTRE: views + histogram ======================= -->
+  <div class="center">
+    <div class="views" id="views">
+      <div class="view"><canvas id="cvO"></canvas><span class="tag">Original</span>
+        <div class="drop" id="dropMsg"><div>Drop DICOM / NIfTI / PNG / JPEG files (or a DICOM folder) here<br>or use <b>Open file(s)</b> or <b>Demo phantom</b></div></div></div>
+      <div class="view"><canvas id="cvP"></canvas><span class="tag">Processed</span></div>
+    </div>
+    <div class="histwrap">
+      <div class="row">
+        <b>Histograms</b>
+        <span class="legend"><span class="sw" style="background:var(--accent)"></span>Original</span>
+        <span class="legend"><span class="sw" style="background:var(--accent2)"></span>Processed</span>
+        <span class="legend" style="margin-left:6px">┆ display window (drag)</span>
+        <span class="grow"></span>
+        <label><input type="checkbox" id="logy"> Log counts</label>
+      </div>
+      <canvas id="hist"></canvas>
+      <div id="readout"></div>
+    </div>
+  </div>
+
+  <!-- ======================= RIGHT: metadata ======================= -->
+  <div class="side right">
+    <div class="tabs"><button class="on" data-tab="key">Key attributes</button><button data-tab="full">Full header</button></div>
+    <div class="tabpane" id="tabKey">
+      <label class="row"><input type="checkbox" id="showId"> Show patient-identifying fields</label>
+      <table class="meta" id="keyTable"></table>
+    </div>
+    <div class="tabpane" id="tabFull" hidden>
+      <div class="row"><input id="filter" placeholder="Filter tags…" class="grow"></div>
+      <pre id="dump"></pre>
+    </div>
+  </div>
+</main>
+
+<script>
+"use strict";
+// code generated for D. Gallichan by Claude, date: 25/11/26
+
+/* =====================================================================
+ *  DICOM parser (uncompressed little/big endian, implicit/explicit VR,
+ *  deflated). Compressed pixel data (JPEG etc.) is reported, not decoded.
+ * ===================================================================== */
+const DICOM_DICT_SRC = `
+0002,0000 UL FileMetaInformationGroupLength|0002,0001 OB FileMetaInformationVersion|0002,0002 UI MediaStorageSOPClassUID
+0002,0003 UI MediaStorageSOPInstanceUID|0002,0010 UI TransferSyntaxUID|0002,0012 UI ImplementationClassUID
+0002,0013 SH ImplementationVersionName|0008,0005 CS SpecificCharacterSet|0008,0008 CS ImageType
+0008,0012 DA InstanceCreationDate|0008,0013 TM InstanceCreationTime|0008,0016 UI SOPClassUID|0008,0018 UI SOPInstanceUID
+0008,0020 DA StudyDate|0008,0021 DA SeriesDate|0008,0022 DA AcquisitionDate|0008,0023 DA ContentDate
+0008,0030 TM StudyTime|0008,0031 TM SeriesTime|0008,0032 TM AcquisitionTime|0008,0033 TM ContentTime
+0008,0050 SH AccessionNumber|0008,0060 CS Modality|0008,0064 CS ConversionType|0008,0070 LO Manufacturer
+0008,0080 LO InstitutionName|0008,0090 PN ReferringPhysicianName|0008,1010 SH StationName
+0008,1030 LO StudyDescription|0008,103E LO SeriesDescription|0008,1090 LO ManufacturerModelName
+0010,0010 PN PatientName|0010,0020 LO PatientID|0010,0030 DA PatientBirthDate|0010,0040 CS PatientSex
+0010,1010 AS PatientAge|0010,1020 DS PatientSize|0010,1030 DS PatientWeight
+0018,0010 LO ContrastBolusAgent|0018,0015 CS BodyPartExamined|0018,0020 CS ScanningSequence
+0018,0021 CS SequenceVariant|0018,0022 CS ScanOptions|0018,0023 CS MRAcquisitionType|0018,0024 SH SequenceName
+0018,0050 DS SliceThickness|0018,0060 DS KVP|0018,0080 DS RepetitionTime|0018,0081 DS EchoTime
+0018,0082 DS InversionTime|0018,0083 DS NumberOfAverages|0018,0084 DS ImagingFrequency|0018,0085 SH ImagedNucleus
+0018,0086 IS EchoNumbers|0018,0087 DS MagneticFieldStrength|0018,0088 DS SpacingBetweenSlices
+0018,0091 IS EchoTrainLength|0018,0095 DS PixelBandwidth|0018,1000 LO DeviceSerialNumber
+0018,1020 LO SoftwareVersions|0018,1030 LO ProtocolName|0018,1100 DS ReconstructionDiameter
+0018,1150 IS ExposureTime|0018,1151 IS XRayTubeCurrent|0018,1152 IS Exposure|0018,1210 SH ConvolutionKernel
+0018,1250 SH ReceiveCoilName|0018,1310 US AcquisitionMatrix|0018,1312 CS InPlanePhaseEncodingDirection
+0018,1314 DS FlipAngle|0018,5100 CS PatientPosition|0020,000D UI StudyInstanceUID|0020,000E UI SeriesInstanceUID
+0020,0010 SH StudyID|0020,0011 IS SeriesNumber|0020,0012 IS AcquisitionNumber|0020,0013 IS InstanceNumber
+0020,0032 DS ImagePositionPatient|0020,0037 DS ImageOrientationPatient|0020,0052 UI FrameOfReferenceUID
+0020,1040 LO PositionReferenceIndicator|0020,1041 DS SliceLocation|0028,0002 US SamplesPerPixel
+0028,0004 CS PhotometricInterpretation|0028,0006 US PlanarConfiguration|0028,0008 IS NumberOfFrames
+0028,0010 US Rows|0028,0011 US Columns|0028,0030 DS PixelSpacing|0028,0100 US BitsAllocated
+0028,0101 US BitsStored|0028,0102 US HighBit|0028,0103 US PixelRepresentation
+0028,0106 US SmallestImagePixelValue|0028,0107 US LargestImagePixelValue|0028,1050 DS WindowCenter
+0028,1051 DS WindowWidth|0028,1052 DS RescaleIntercept|0028,1053 DS RescaleSlope|0028,1054 LO RescaleType
+0028,1055 LO WindowCenterWidthExplanation|0032,1060 LO RequestedProcedureDescription
+0040,0244 DA PerformedProcedureStepStartDate|0040,0245 TM PerformedProcedureStepStartTime|7FE0,0010 OW PixelData`;
+
+const DICOM_DICT = {};   // tag number -> {vr, kw, name}
+DICOM_DICT_SRC.split(/[|\n]/).map(s => s.trim()).filter(Boolean).forEach(s => {
+  const [t, vr, kw] = s.split(/\s+/);
+  const tag = parseInt(t.replace(",", ""), 16);
+  DICOM_DICT[tag] = { vr, kw, name: kw.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2") };
+});
+const KW_TO_TAG = Object.fromEntries(Object.entries(DICOM_DICT).map(([t, d]) => [d.kw, +t]));
+
+const LONG_VRS = new Set(["OB", "OD", "OF", "OL", "OV", "OW", "SQ", "SV", "UC", "UN", "UR", "UT", "UV"]);
+const STRING_VRS = new Set(["AE", "AS", "CS", "DA", "DS", "DT", "IS", "LO", "LT", "PN", "SH", "ST", "TM", "UC", "UI", "UR", "UT"]);
+const TS_NAMES = {
+  "1.2.840.10008.1.2": "Implicit VR Little Endian",
+  "1.2.840.10008.1.2.1": "Explicit VR Little Endian",
+  "1.2.840.10008.1.2.1.99": "Deflated Explicit VR Little Endian",
+  "1.2.840.10008.1.2.2": "Explicit VR Big Endian",
+  "1.2.840.10008.1.2.4.50": "JPEG Baseline", "1.2.840.10008.1.2.4.51": "JPEG Extended",
+  "1.2.840.10008.1.2.4.57": "JPEG Lossless", "1.2.840.10008.1.2.4.70": "JPEG Lossless SV1",
+  "1.2.840.10008.1.2.4.80": "JPEG-LS Lossless", "1.2.840.10008.1.2.4.81": "JPEG-LS Near-lossless",
+  "1.2.840.10008.1.2.4.90": "JPEG 2000 Lossless", "1.2.840.10008.1.2.4.91": "JPEG 2000",
+  "1.2.840.10008.1.2.5": "RLE Lossless",
+};
+const tagStr = t => "(" + (t >>> 16).toString(16).toUpperCase().padStart(4, "0") + "," +
+                    (t & 0xffff).toString(16).toUpperCase().padStart(4, "0") + ")";
+
+async function inflateRaw(bytes) {
+  const ds = new DecompressionStream("deflate-raw");
+  const buf = await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();
+  return new Uint8Array(buf);
+}
+
+/** Parse a DICOM file. Returns {elements: [{tag,vr,depth,offset,length,undefinedLength}], byTag, view, le, ts}. */
+async function parseDicom(arrayBuffer) {
+  let bytes = new Uint8Array(arrayBuffer);
+  let pos = 0;
+  if (bytes.length > 132 && String.fromCharCode(...bytes.subarray(128, 132)) === "DICM") pos = 132;
+  let view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const elements = [];
+
+  // --- File meta group (always explicit VR little endian)
+  let ts = "1.2.840.10008.1.2";   // default if no meta header
+  if (pos === 132 || (view.getUint16(0, true) === 0x0002)) {
+    const meta = parseDataset(view, bytes, pos, bytes.length, true, true, 0, elements, true);
+    pos = meta;
+    const tsEl = elements.find(e => e.tag === 0x00020010);
+    if (tsEl) ts = readString(bytes, tsEl).replace(/\0/g, "").trim();
+  } else if (bytes.length > 4) {
+    // No preamble: guess explicit vs implicit from the first element's VR bytes
+    const vr = String.fromCharCode(bytes[4], bytes[5]);
+    if (/^[A-Z]{2}$/.test(vr)) ts = "1.2.840.10008.1.2.1";
+  }
+  let le = ts !== "1.2.840.10008.1.2.2";
+  let explicit = ts !== "1.2.840.10008.1.2";
+  if (ts === "1.2.840.10008.1.2.1.99") {          // deflated: inflate the remainder
+    const inflated = await inflateRaw(bytes.subarray(pos));
+    const merged = new Uint8Array(pos + inflated.length);
+    merged.set(bytes.subarray(0, pos)); merged.set(inflated, pos);
+    bytes = merged; view = new DataView(bytes.buffer);
+  }
+  parseDataset(view, bytes, pos, bytes.length, explicit, le, 0, elements, false);
+  const byTag = new Map();
+  for (const e of elements) if (e.depth === 0 && !byTag.has(e.tag)) byTag.set(e.tag, e);
+  return { elements, byTag, bytes, view, le, ts };
+}
+
+function parseDataset(view, bytes, pos, end, explicit, le, depth, out, metaOnly) {
+  while (pos + 8 <= end) {
+    const group = view.getUint16(pos, le), elem = view.getUint16(pos + 2, le);
+    if (metaOnly && group !== 0x0002) return pos;
+    const tag = ((group << 16) | elem) >>> 0;
+    // Item delimiters inside sequences
+    if (group === 0xFFFE) {
+      const len = view.getUint32(pos + 4, le);
+      if (elem === 0xE00D || elem === 0xE0DD) return pos + 8;   // item / sequence delimitation
+      pos += 8;
+      if (elem === 0xE000) {
+        const itemEnd = len === 0xFFFFFFFF ? end : pos + len;
+        pos = parseDataset(view, bytes, pos, itemEnd, explicit, le, depth + 1, out, false);
+        if (len !== 0xFFFFFFFF) pos = itemEnd;
+      }
+      continue;
+    }
+    let vr, len, hdr;
+    if (explicit) {
+      vr = String.fromCharCode(bytes[pos + 4], bytes[pos + 5]);
+      if (LONG_VRS.has(vr)) { len = view.getUint32(pos + 8, le); hdr = 12; }
+      else if (/^[A-Z]{2}$/.test(vr)) { len = view.getUint16(pos + 6, le); hdr = 8; }
+      else { vr = "UN"; len = view.getUint32(pos + 4, le); hdr = 8; }   // malformed: fall back to implicit
+    } else {
+      len = view.getUint32(pos + 4, le); hdr = 8;
+      vr = DICOM_DICT[tag]?.vr || ((elem === 0x0000) ? "UL" : (len === 0xFFFFFFFF ? "SQ" : "UN"));
+    }
+    pos += hdr;
+    const undefinedLength = len === 0xFFFFFFFF;
+    const el = { tag, vr, depth, offset: pos, length: undefinedLength ? 0 : len, undefinedLength };
+    out.push(el);
+    if (vr === "SQ" || (undefinedLength && tag !== 0x7FE00010)) {
+      el.vr = "SQ";
+      if (undefinedLength) pos = parseDataset(view, bytes, pos, end, explicit, le, depth + 1, out, false);
+      else { parseDataset(view, bytes, pos, pos + len, explicit, le, depth + 1, out, false); pos += len; }
+    } else if (undefinedLength) {          // encapsulated (compressed) pixel data
+      el.encapsulated = true;
+      return end;
+    } else {
+      pos += len;
+    }
+  }
+  return pos;
+}
+
+function readString(bytes, el) {
+  let s = "";
+  const b = bytes.subarray(el.offset, el.offset + el.length);
+  for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+  return s.replace(/[\0\s]+$/, "").replace(/^\s+/, "");
+}
+
+/** Decode an element value: array of numbers, string, or a short description. */
+function elementValue(ds, el) {
+  const { view, bytes, le } = ds;
+  const n = el.length, o = el.offset;
+  switch (el.vr) {
+    case "US": return Array.from({ length: n / 2 }, (_, i) => view.getUint16(o + 2 * i, le));
+    case "SS": return Array.from({ length: n / 2 }, (_, i) => view.getInt16(o + 2 * i, le));
+    case "UL": return Array.from({ length: n / 4 }, (_, i) => view.getUint32(o + 4 * i, le));
+    case "SL": return Array.from({ length: n / 4 }, (_, i) => view.getInt32(o + 4 * i, le));
+    case "FL": return Array.from({ length: n / 4 }, (_, i) => view.getFloat32(o + 4 * i, le));
+    case "FD": return Array.from({ length: n / 8 }, (_, i) => view.getFloat64(o + 8 * i, le));
+    case "AT": return Array.from({ length: n / 4 }, (_, i) => tagStr(((view.getUint16(o + 4 * i, le) << 16) | view.getUint16(o + 4 * i + 2, le)) >>> 0));
+    case "SQ": return "<sequence>";
+  }
+  if (STRING_VRS.has(el.vr)) return readString(bytes, el);
+  // OB/OW/UN: show as text if printable, else size
+  if (n > 0 && n <= 128) {
+    const b = bytes.subarray(o, o + n);
+    if (b.every((c, i) => (c >= 32 && c < 127) || (c === 0 && i === n - 1))) return readString(bytes, el);
+  }
+  return `<${n} bytes>`;
+}
+
+function dsGet(ds, kw) {
+  const el = ds.byTag.get(KW_TO_TAG[kw]);
+  return el ? elementValue(ds, el) : undefined;
+}
+function dsNum(ds, kw, def) {             // first value as a number
+  let v = dsGet(ds, kw);
+  if (v === undefined) return def;
+  if (Array.isArray(v)) v = v[0];
+  if (typeof v === "string") v = parseFloat(v.split("\\")[0]);
+  return Number.isFinite(v) ? v : def;
+}
+function dsNums(ds, kw) {
+  let v = dsGet(ds, kw);
+  if (v === undefined) return null;
+  if (typeof v === "string") return v.split("\\").map(parseFloat);
+  return v;
+}
+
+/** Pixel data -> Float32Array (frames*rows*cols), modality LUT applied, MONOCHROME1 inverted. */
+function dicomPixels(ds) {
+  const pe = ds.byTag.get(0x7FE00010);
+  if (!pe) throw new Error("No pixel data in file");
+  if (pe.encapsulated)
+    throw new Error(`Compressed pixel data (${TS_NAMES[ds.ts] || ds.ts}) is not supported in the browser version — ` +
+                    `try the Python version, or decompress first (e.g. 'gdcmconv --raw' or 'dcmdjpeg').`);
+  const rows = dsNum(ds, "Rows"), cols = dsNum(ds, "Columns");
+  const frames = Math.max(1, dsNum(ds, "NumberOfFrames", 1) | 0);
+  const spp = dsNum(ds, "SamplesPerPixel", 1);
+  const ba = dsNum(ds, "BitsAllocated", 16), bs = dsNum(ds, "BitsStored", ba);
+  const signed = dsNum(ds, "PixelRepresentation", 0) === 1;
+  const planar = dsNum(ds, "PlanarConfiguration", 0);
+  const photometric = String(dsGet(ds, "PhotometricInterpretation") || "MONOCHROME2").trim();
+  const npix = rows * cols, nsamp = npix * frames * spp;
+  const { view, le } = ds;
+  const o = pe.offset;
+  if (![8, 16, 32].includes(ba)) throw new Error(`BitsAllocated = ${ba} not supported`);
+  if (pe.length < nsamp * ba / 8) throw new Error("Pixel data shorter than expected");
+
+  const raw = new Float32Array(nsamp);
+  const shift = ba - bs;                     // for masking / sign extension of BitsStored < BitsAllocated
+  for (let i = 0; i < nsamp; i++) {
+    let v;
+    if (ba === 8) v = signed ? view.getInt8(o + i) : view.getUint8(o + i);
+    else if (ba === 16) {
+      v = view.getUint16(o + 2 * i, le);
+      if (shift) v = signed ? ((v << (16 + shift)) >> (16 + shift)) : (v & ((1 << bs) - 1));
+      else if (signed) v = (v << 16) >> 16;
+    } else v = signed ? view.getInt32(o + 4 * i, le) : view.getUint32(o + 4 * i, le);
+    raw[i] = v;
+  }
+  let out = new Float32Array(npix * frames);
+  if (spp === 1) {
+    const slope = dsNum(ds, "RescaleSlope", 1), inter = dsNum(ds, "RescaleIntercept", 0);
+    for (let i = 0; i < out.length; i++) out[i] = raw[i] * slope + inter;
+    if (photometric === "MONOCHROME1") {
+      let mn = Infinity, mx = -Infinity;
+      for (const v of out) { if (v < mn) mn = v; if (v > mx) mx = v; }
+      for (let i = 0; i < out.length; i++) out[i] = mx + mn - out[i];
+    }
+  } else {
+    // colour -> luminance
+    const ybr = photometric.startsWith("YBR");
+    for (let f = 0; f < frames; f++) for (let p = 0; p < npix; p++) {
+      const base = f * npix * spp;
+      let a, b, c;
+      if (planar === 1) { a = raw[base + p]; b = raw[base + npix + p]; c = raw[base + 2 * npix + p]; }
+      else { a = raw[base + 3 * p]; b = raw[base + 3 * p + 1]; c = raw[base + 3 * p + 2]; }
+      if (ybr) {   // YBR_FULL(_422) -> RGB
+        const Y = a, Cb = b - 128, Cr = c - 128;
+        const r = Y + 1.402 * Cr, g = Y - 0.344136 * Cb - 0.714136 * Cr, bl = Y + 1.772 * Cb;
+        a = r; b = g; c = bl;
+      }
+      out[f * npix + p] = 0.299 * a + 0.587 * b + 0.114 * c;
+    }
+  }
+  return { data: out, rows, cols, frames };
+}
+
+function dicomSlicePosition(ds) {
+  const iop = dsNums(ds, "ImageOrientationPatient"), ipp = dsNums(ds, "ImagePositionPatient");
+  if (!iop || !ipp || iop.length < 6 || ipp.length < 3) return null;
+  const n = [iop[1] * iop[5] - iop[2] * iop[4], iop[2] * iop[3] - iop[0] * iop[5], iop[0] * iop[4] - iop[1] * iop[3]];
+  return n[0] * ipp[0] + n[1] * ipp[1] + n[2] * ipp[2];
+}
+
+/** Build a volume from one or more parsed DICOM datasets (series). */
+function volumeFromDicom(datasets, name) {
+  datasets = datasets.filter(d => d.byTag.has(0x7FE00010));
+  if (!datasets.length) throw new Error("No DICOM images with pixel data found");
+  const uid = dsGet(datasets[0], "SeriesInstanceUID");
+  const r0 = dsNum(datasets[0], "Rows"), c0 = dsNum(datasets[0], "Columns");
+  datasets = datasets.filter(d => dsGet(d, "SeriesInstanceUID") === uid && dsNum(d, "Rows") === r0 && dsNum(d, "Columns") === c0);
+  let pos = datasets.map(dicomSlicePosition);
+  let order = datasets.map((_, i) => i);
+  if (datasets.length > 1 && pos.every(p => p !== null)) order.sort((a, b) => pos[a] - pos[b]);
+  else { order.sort((a, b) => dsNum(datasets[a], "InstanceNumber", 0) - dsNum(datasets[b], "InstanceNumber", 0)); pos = pos.map(() => null); }
+  datasets = order.map(i => datasets[i]); pos = order.map(i => pos[i]);
+
+  const parts = datasets.map(dicomPixels);
+  const nz = parts.reduce((s, p) => s + p.frames, 0);
+  const data = new Float32Array(nz * r0 * c0);
+  const headers = [];
+  let k = 0;
+  parts.forEach((p, i) => { data.set(p.data, k); k += p.data.length; for (let f = 0; f < p.frames; f++) headers.push(datasets[i]); });
+
+  const ds0 = datasets[0];
+  const ps = dsNums(ds0, "PixelSpacing") || [1, 1];
+  let dz;
+  if (datasets.length > 1 && pos[0] !== null) {
+    const d = pos.slice(1).map((p, i) => Math.abs(p - pos[i])).sort((a, b) => a - b);
+    dz = d[Math.floor(d.length / 2)] || 1;
+    if (d.length % 2 === 0) dz = (d[d.length / 2 - 1] + d[d.length / 2]) / 2 || 1;
+  } else dz = dsNum(ds0, "SpacingBetweenSlices", dsNum(ds0, "SliceThickness", 1)) || 1;
+  const wc = dsNum(ds0, "WindowCenter"), ww = dsNum(ds0, "WindowWidth");
+  return {
+    data, nt: 1, nz, ny: r0, nx: c0, spacing: [dz, ps[0] || 1, ps[1] || 1],
+    kind: "DICOM", name, headers, defaultWindow: (ww > 0 && Number.isFinite(wc)) ? [wc, ww] : null,
+  };
+}
+
+/* =====================================================================
+ *  NIfTI-1 / NIfTI-2 parser (.nii, .nii.gz)
+ * ===================================================================== */
+async function gunzipIfNeeded(buf) {
+  const b = new Uint8Array(buf);
+  if (b[0] === 0x1f && b[1] === 0x8b) {
+    const ds = new DecompressionStream("gzip");
+    return await new Response(new Blob([b]).stream().pipeThrough(ds)).arrayBuffer();
+  }
+  return buf;
+}
+
+async function parseNifti(buf, name) {
+  buf = await gunzipIfNeeded(buf);
+  const v = new DataView(buf);
+  let le = true, n2 = false;
+  const s = v.getInt32(0, true);
+  if (s === 348) n2 = false; else if (s === 540) n2 = true;
+  else { le = false; const sb = v.getInt32(0, false); if (sb === 348) n2 = false; else if (sb === 540) n2 = true; else throw new Error("Not a NIfTI file"); }
+  let dim, datatype, pixdim, voxOffset, slope, inter;
+  if (!n2) {
+    dim = Array.from({ length: 8 }, (_, i) => v.getInt16(40 + 2 * i, le));
+    datatype = v.getInt16(70, le);
+    pixdim = Array.from({ length: 8 }, (_, i) => v.getFloat32(76 + 4 * i, le));
+    voxOffset = Math.max(352, Math.round(v.getFloat32(108, le)));
+    slope = v.getFloat32(112, le); inter = v.getFloat32(116, le);
+  } else {
+    dim = Array.from({ length: 8 }, (_, i) => Number(v.getBigInt64(16 + 8 * i, le)));
+    datatype = v.getInt16(12, le);
+    pixdim = Array.from({ length: 8 }, (_, i) => v.getFloat64(104 + 8 * i, le));
+    voxOffset = Number(v.getBigInt64(168, le));
+    slope = v.getFloat64(176, le); inter = v.getFloat64(184, le);
+  }
+  const nd = dim[0];
+  const nx = dim[1] || 1, ny = nd >= 2 ? dim[2] || 1 : 1, nz = nd >= 3 ? dim[3] || 1 : 1;
+  let nt = 1; for (let i = 4; i <= nd; i++) nt *= Math.max(1, dim[i]);
+  const N = nx * ny * nz * nt;
+  const readers = {
+    2: [1, (o) => v.getUint8(o)], 256: [1, (o) => v.getInt8(o)],
+    4: [2, (o) => v.getInt16(o, le)], 512: [2, (o) => v.getUint16(o, le)],
+    8: [4, (o) => v.getInt32(o, le)], 768: [4, (o) => v.getUint32(o, le)],
+    16: [4, (o) => v.getFloat32(o, le)], 64: [8, (o) => v.getFloat64(o, le)],
+    1024: [8, (o) => Number(v.getBigInt64(o, le))], 1280: [8, (o) => Number(v.getBigUint64(o, le))],
+    128: [3, (o) => 0.299 * v.getUint8(o) + 0.587 * v.getUint8(o + 1) + 0.114 * v.getUint8(o + 2)],
+  };
+  if (!readers[datatype]) throw new Error(`NIfTI datatype ${datatype} not supported`);
+  const [bpv, rd] = readers[datatype];
+  if (voxOffset + N * bpv > buf.byteLength) throw new Error("NIfTI file is truncated");
+  const useScale = Number.isFinite(slope) && slope !== 0;
+  if (!useScale) { slope = 1; inter = 0; }
+  // Canonical layout: [t][z][row][x] with row = ny-1-y (anterior at top for axial)
+  const data = new Float32Array(N);
+  let o = voxOffset;
+  for (let t = 0; t < nt; t++) for (let z = 0; z < nz; z++) for (let y = 0; y < ny; y++) {
+    const base = ((t * nz + z) * ny + (ny - 1 - y)) * nx;
+    for (let x = 0; x < nx; x++, o += bpv) data[base + x] = rd(o) * slope + inter;
+  }
+  const sp = i => (Math.abs(pixdim[i]) || 1);
+  return { data, nt, nz, ny, nx, spacing: [sp(3), sp(2), sp(1)], kind: "NIfTI", name, headers: [], defaultWindow: null };
+}
+
+/* =====================================================================
+ *  PNG / JPEG etc. via the browser decoder
+ * ===================================================================== */
+async function loadBitmap(file) {
+  const bmp = await createImageBitmap(file);
+  const c = document.createElement("canvas"); c.width = bmp.width; c.height = bmp.height;
+  const ctx = c.getContext("2d"); ctx.drawImage(bmp, 0, 0);
+  const px = ctx.getImageData(0, 0, c.width, c.height).data;
+  const data = new Float32Array(c.width * c.height);
+  for (let i = 0; i < data.length; i++) data[i] = 0.299 * px[4 * i] + 0.587 * px[4 * i + 1] + 0.114 * px[4 * i + 2];
+  return { data, nt: 1, nz: 1, ny: c.height, nx: c.width, spacing: [1, 1, 1], kind: "Image", name: file.name, headers: [], defaultWindow: null };
+}
+
+/* =====================================================================
+ *  Demo phantom (modified Shepp–Logan, ×1000 with Gaussian noise)
+ * ===================================================================== */
+function makePhantom(N = 256, noise = 20, seed = 1) {
+  const E = [[1, .69, .92, 0, 0, 0], [-.8, .6624, .874, 0, -.0184, 0], [-.2, .11, .31, .22, 0, -18],
+             [-.2, .16, .41, -.22, 0, 18], [.1, .21, .25, 0, .35, 0], [.1, .046, .046, 0, .1, 0],
+             [.1, .046, .046, 0, -.1, 0], [.1, .046, .023, -.08, -.605, 0], [.1, .023, .023, 0, -.606, 0],
+             [.1, .023, .046, .06, -.605, 0]];
+  let s = seed >>> 0;
+  const rnd = () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) + 0.5) / 4294967296;
+  const data = new Float32Array(N * N);
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+    const x = 2 * (c + 0.5) / N - 1, y = 1 - 2 * (r + 0.5) / N;
+    let v = 0;
+    for (const [A, a, b, x0, y0, ph] of E) {
+      const t = ph * Math.PI / 180, dx = x - x0, dy = y - y0;
+      const u = dx * Math.cos(t) + dy * Math.sin(t), w = -dx * Math.sin(t) + dy * Math.cos(t);
+      if ((u * u) / (a * a) + (w * w) / (b * b) <= 1) v += A;
+    }
+    const g = Math.sqrt(-2 * Math.log(rnd())) * Math.cos(2 * Math.PI * rnd());
+    data[r * N + c] = v * 1000 + noise * g;
+  }
+  return { data, nt: 1, nz: 1, ny: N, nx: N, spacing: [1, 1, 1], kind: "Phantom", name: "Shepp–Logan phantom", headers: [], defaultWindow: null };
+}
+
+/* =====================================================================
+ *  Processing — identical algorithms to the Python version
+ *  Images are {d: Float64Array, w, h}
+ * ===================================================================== */
+const BOUNDARY = {
+  Zero: (i, n) => (i < 0 || i >= n) ? -1 : i,
+  Replicate: (i, n) => i < 0 ? 0 : (i >= n ? n - 1 : i),
+  Reflect: (i, n) => {                          // half-sample symmetric: d c b a | a b c d
+    if (i >= 0 && i < n) return i;
+    const p = 2 * n; i = ((i % p) + p) % p;
+    return i >= n ? p - 1 - i : i;
+  },
+};
+
+function gaussianKernel1d(sigma) {
+  const r = Math.max(1, Math.ceil(3 * sigma));
+  const k = new Float64Array(2 * r + 1);
+  let s = 0;
+  for (let i = -r; i <= r; i++) { k[i + r] = Math.exp(-(i * i) / (2 * sigma * sigma)); s += k[i + r]; }
+  for (let i = 0; i < k.length; i++) k[i] /= s;
+  return k;
+}
+
+/** 1D convolution along x (axis=1) or y (axis=0). */
+function convolve1d(img, k, axis, boundary) {
+  const { d, w, h } = img, out = new Float64Array(w * h), r = (k.length - 1) >> 1, bf = BOUNDARY[boundary];
+  if (axis === 1) {
+    const idx = new Int32Array(w + 2 * r);
+    for (let i = -r; i < w + r; i++) idx[i + r] = bf(i, w);
+    for (let y = 0; y < h; y++) {
+      const row = y * w;
+      for (let x = 0; x < w; x++) {
+        let s = 0;
+        for (let j = 0; j < k.length; j++) { const ii = idx[x - (j - r) + r]; if (ii >= 0) s += k[j] * d[row + ii]; }
+        out[row + x] = s;
+      }
+    }
+  } else {
+    const idx = new Int32Array(h + 2 * r);
+    for (let i = -r; i < h + r; i++) idx[i + r] = bf(i, h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let s = 0;
+      for (let j = 0; j < k.length; j++) { const ii = idx[y - (j - r) + r]; if (ii >= 0) s += k[j] * d[ii * w + x]; }
+      out[y * w + x] = s;
+    }
+  }
+  return { d: out, w, h };
+}
+
+/** True 2D convolution (kernel flipped), kernel as array of rows. */
+function convolve2d(img, K, boundary) {
+  const { d, w, h } = img, kh = K.length, kw = K[0].length, cy = kh >> 1, cx = kw >> 1;
+  const bf = BOUNDARY[boundary], out = new Float64Array(w * h);
+  const xi = new Int32Array(w + kw), yi = new Int32Array(h + kh);
+  for (let i = -cx; i < w + cx + 1; i++) xi[i + cx] = bf(i, w);
+  for (let i = -cy; i < h + cy + 1; i++) yi[i + cy] = bf(i, h);
+  const taps = [];
+  for (let i = 0; i < kh; i++) for (let j = 0; j < kw; j++) if (K[i][j] !== 0) taps.push([cy - i, cx - j, K[i][j]]);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let s = 0;
+    for (const [dy, dx, kv] of taps) {
+      const yy = yi[y + dy + cy], xx = xi[x + dx + cx];
+      if (yy >= 0 && xx >= 0) s += kv * d[yy * w + xx];
+    }
+    out[y * w + x] = s;
+  }
+  return { d: out, w, h };
+}
+
+const gaussian = (img, sigma, b) => { const k = gaussianKernel1d(sigma); return convolve1d(convolve1d(img, k, 0, b), k, 1, b); };
+const LAPLACIAN = [[0, 1, 0], [1, -4, 1], [0, 1, 0]];
+const SOBEL_X = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]];
+const transpose = K => K[0].map((_, j) => K.map(r => r[j]));
+
+function meanFilter(img, size, b) {
+  size = (size | 0) | 1;
+  return convolve2d(img, Array.from({ length: size }, () => new Array(size).fill(1 / (size * size))), b);
+}
+function unsharp(img, sigma, amount, b) {
+  const g = gaussian(img, sigma, b), out = new Float64Array(img.d.length);
+  for (let i = 0; i < out.length; i++) out[i] = img.d[i] + amount * (img.d[i] - g.d[i]);
+  return { d: out, w: img.w, h: img.h };
+}
+function sobelMag(img, b) {
+  const gx = convolve2d(img, SOBEL_X, b), gy = convolve2d(img, transpose(SOBEL_X), b);
+  const out = new Float64Array(img.d.length);
+  for (let i = 0; i < out.length; i++) out[i] = Math.hypot(gx.d[i], gy.d[i]);
+  return { d: out, w: img.w, h: img.h };
+}
+function minmax(d) { let mn = Infinity, mx = -Infinity; for (const v of d) { if (v < mn) mn = v; if (v > mx) mx = v; } return [mn, mx]; }
+function percentile(d, p) {
+  const s = Float64Array.from(d).sort();
+  const pos = (s.length - 1) * p / 100, i = Math.floor(pos), j = Math.min(i + 1, s.length - 1);
+  return s[i] + (s[j] - s[i]) * (pos - i);
+}
+function contrastStretch(img, lowP, highP) {
+  const [mn, mx] = minmax(img.d), lo = percentile(img.d, lowP), hi = percentile(img.d, highP);
+  if (hi <= lo) return { d: Float64Array.from(img.d), w: img.w, h: img.h };
+  const out = new Float64Array(img.d.length);
+  for (let i = 0; i < out.length; i++) out[i] = mn + Math.min(1, Math.max(0, (img.d[i] - lo) / (hi - lo))) * (mx - mn);
+  return { d: out, w: img.w, h: img.h };
+}
+function histEqualise(img, nbins) {
+  const [mn, mx] = minmax(img.d), n = img.d.length;
+  if (mx <= mn) return { d: Float64Array.from(img.d), w: img.w, h: img.h };
+  const idx = new Int32Array(n), counts = new Float64Array(nbins);
+  for (let i = 0; i < n; i++) { let b = Math.floor((img.d[i] - mn) / (mx - mn) * nbins); b = b < 0 ? 0 : (b > nbins - 1 ? nbins - 1 : b); idx[i] = b; counts[b]++; }
+  const cdf = new Float64Array(nbins); let c = 0;
+  for (let b = 0; b < nbins; b++) { c += counts[b]; cdf[b] = c / n; }
+  const out = new Float64Array(n);
+  for (let i = 0; i < n; i++) out[i] = mn + cdf[idx[i]] * (mx - mn);
+  return { d: out, w: img.w, h: img.h };
+}
+
+const KERNEL_PRESETS = {
+  "Identity": [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
+  "Mean 3x3": [[1 / 9, 1 / 9, 1 / 9], [1 / 9, 1 / 9, 1 / 9], [1 / 9, 1 / 9, 1 / 9]],
+  "Gaussian 3x3": [[1, 2, 1], [2, 4, 2], [1, 2, 1]].map(r => r.map(v => v / 16)),
+  "Gaussian 5x5": [1, 4, 6, 4, 1].map(a => [1, 4, 6, 4, 1].map(b => a * b / 256)),
+  "Laplacian": LAPLACIAN,
+  "Laplacian (8-conn.)": [[1, 1, 1], [1, -8, 1], [1, 1, 1]],
+  "Sharpen": [[0, -1, 0], [-1, 5, -1], [0, -1, 0]],
+  "Sobel x": SOBEL_X,
+  "Sobel y": transpose(SOBEL_X),
+  "Prewitt x": [[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]],
+  "Emboss": [[-2, -1, 0], [-1, 1, 1], [0, 1, 2]],
+};
+
+const STEP_TYPES = {
+  gaussian: ["Gaussian smoothing", { sigma: 1.5 }],
+  mean: ["Mean (box) filter", { size: 3 }],
+  laplacian: ["Laplacian (high-pass)", {}],
+  unsharp: ["Unsharp mask (sharpen)", { sigma: 2.0, amount: 1.0 }],
+  sobel: ["Sobel edge magnitude", {}],
+  custom: ["Custom kernel", { kernel: KERNEL_PRESETS["Sharpen"], absolute: false }],
+  stretch: ["Contrast stretch", { low: 1.0, high: 99.0 }],
+  equalise: ["Histogram equalisation", { nbins: 256 }],
+};
+
+function stepLabel(s) {
+  const p = s.params, base = STEP_TYPES[s.type][0];
+  switch (s.type) {
+    case "gaussian": return `${base} (σ=${+p.sigma})`;
+    case "mean": return `${base} (${p.size}×${p.size})`;
+    case "unsharp": return `${base} (σ=${+p.sigma}, amount=${+p.amount})`;
+    case "custom": return `${base} (${p.kernel.length}×${p.kernel.length}${p.absolute ? ", |abs|" : ""})`;
+    case "stretch": return `${base} (${+p.low}–${+p.high}%)`;
+    case "equalise": return `${base} (${p.nbins} bins)`;
+  }
+  return base;
+}
+
+function applyStep(img, s, b) {
+  const p = s.params;
+  switch (s.type) {
+    case "gaussian": return gaussian(img, p.sigma, b);
+    case "mean": return meanFilter(img, p.size, b);
+    case "laplacian": return convolve2d(img, LAPLACIAN, b);
+    case "unsharp": return unsharp(img, p.sigma, p.amount, b);
+    case "sobel": return sobelMag(img, b);
+    case "custom": {
+      const o = convolve2d(img, p.kernel, b);
+      if (p.absolute) for (let i = 0; i < o.d.length; i++) o.d[i] = Math.abs(o.d[i]);
+      return o;
+    }
+    case "stretch": return contrastStretch(img, p.low, p.high);
+    case "equalise": return histEqualise(img, p.nbins | 0);
+  }
+  throw new Error("Unknown step " + s.type);
+}
+
+function applyChain(img, steps, boundary) {
+  let cur = { d: Float64Array.from(img.d), w: img.w, h: img.h };
+  for (const s of steps) if (s.enabled) cur = applyStep(cur, s, boundary);
+  return cur;
+}
+
+/** Extract a 2D slice in display orientation. */
+function getSlice(vol, axis, k, t) {
+  const { nz, ny, nx, spacing: [dz, dy, dx] } = vol, base = t * nz * ny * nx, D = vol.data;
+  let w, h, d, ry, rx;
+  if (axis === "axial") {
+    w = nx; h = ny; ry = dy; rx = dx; d = new Float64Array(D.subarray(base + k * ny * nx, base + (k + 1) * ny * nx));
+  } else if (axis === "coronal") {
+    w = nx; h = nz; ry = dz; rx = dx; d = new Float64Array(w * h);
+    for (let z = 0; z < nz; z++) for (let x = 0; x < nx; x++) d[(nz - 1 - z) * w + x] = D[base + (z * ny + k) * nx + x];
+  } else {
+    w = ny; h = nz; ry = dz; rx = dy; d = new Float64Array(w * h);
+    for (let z = 0; z < nz; z++) for (let y = 0; y < ny; y++) d[(nz - 1 - z) * w + y] = D[base + (z * ny + y) * nx + k];
+  }
+  return { d, w, h, ry, rx };
+}
+const nSlices = (vol, axis) => ({ axial: vol.nz, coronal: vol.ny, sagittal: vol.nx })[axis];
+
+// Exposed for testing / console experiments
+window.MIP = { parseDicom, volumeFromDicom, parseNifti, makePhantom, gaussianKernel1d, convolve1d, convolve2d,
+               gaussian, meanFilter, unsharp, sobelMag, contrastStretch, histEqualise, percentile, applyChain,
+               getSlice, KERNEL_PRESETS, LAPLACIAN };
+
+/* =====================================================================
+ *  Application state & UI
+ * ===================================================================== */
+const $ = id => document.getElementById(id);
+const S = {
+  vol: null, orig: null, proc: null, steps: [], sel: -1,
+  wc: 0, ww: 1, gamma: 1,
+  view: { scale: 1, cx: 0, cy: 0 },   // image-space centre (display units) and screen px per unit
+  bitmapO: document.createElement("canvas"), bitmapP: document.createElement("canvas"),
+  procWin: null,
+};
+
+// ---------- loading
+async function loadFiles(files) {
+  files = files.filter(f => !f.name.startsWith("."));
+  if (!files.length) return;
+  setInfo("Loading…");
+  try {
+    let vol;
+    const f0 = files[0], n0 = f0.name.toLowerCase();
+    if (files.length === 1 && /\.nii(\.gz)?$/.test(n0)) vol = await parseNifti(await f0.arrayBuffer(), f0.name);
+    else if (files.length === 1 && /\.(png|jpe?g|bmp|gif|webp)$/.test(n0)) vol = await loadBitmap(f0);
+    else {
+      const parsed = [];
+      for (const f of files) {
+        try { const ds = await parseDicom(await f.arrayBuffer()); if (ds.byTag.has(0x7FE00010)) parsed.push(ds); }
+        catch (e) { if (files.length === 1) throw e; }
+      }
+      if (!parsed.length) throw new Error("No readable DICOM images found among the selected files");
+      vol = volumeFromDicom(parsed, files.length === 1 ? f0.name : `${parsed.length} DICOM files`);
+    }
+    setVolume(vol);
+  } catch (e) {
+    console.error(e);
+    setInfo("Could not load: " + e.message, true);
+  }
+}
+
+function setVolume(vol) {
+  S.vol = vol;
+  $("dropMsg").hidden = true;
+  $("btnExport").disabled = false;
+  $("axis").disabled = vol.nz <= 1; $("axis").value = "axial";
+  $("frame").max = vol.nt - 1; $("frame").value = 0; $("frame").disabled = vol.nt <= 1;
+  setupSliceSlider();
+  extractSlice();
+  if (vol.defaultWindow) setWindow(...vol.defaultWindow); else autoWindow(S.orig.d);
+  recompute(); fitView();
+  const [dz, dy, dx] = vol.spacing;
+  setInfo(`${vol.kind}: ${vol.name} — ${vol.nx}×${vol.ny}×${vol.nz}${vol.nt > 1 ? "×" + vol.nt : ""}, ` +
+          `voxel ${+dx.toPrecision(3)}×${+dy.toPrecision(3)}×${+dz.toPrecision(3)} mm`);
+}
+
+function setupSliceSlider() {
+  const n = nSlices(S.vol, $("axis").value);
+  $("slice").max = n - 1; $("slice").value = n >> 1; $("slice").disabled = n <= 1;
+}
+function extractSlice() {
+  const axis = $("axis").value, k = +$("slice").value, t = +$("frame").value;
+  S.orig = getSlice(S.vol, axis, k, t);
+  $("sliceVal").textContent = `${k + 1}/${nSlices(S.vol, axis)}`;
+  $("frameVal").textContent = `${t + 1}/${S.vol.nt}`;
+  updateMetadata();
+}
+
+// ---------- processing
+let pending = 0;
+function schedule() { clearTimeout(pending); pending = setTimeout(recompute, 30); }
+function recompute() {
+  if (!S.orig) return;
+  try { S.proc = applyChain(S.orig, S.steps, $("boundary").value); }
+  catch (e) { console.error(e); S.proc = S.orig; setInfo("Processing error: " + e.message, true); }
+  renderBitmaps(); draw(); drawHistogram();
+}
+
+// ---------- display
+function setWindow(c, w) {
+  S.wc = c; S.ww = Math.max(w, 1e-6);
+  $("wc").value = +S.wc.toPrecision(6); $("ww").value = +S.ww.toPrecision(6);
+}
+function autoWindow(d) {
+  let lo = percentile(d, 1), hi = percentile(d, 99);
+  if (hi <= lo) { const m = minmax(d); lo = m[0]; hi = m[1] + 1e-3; }
+  setWindow((lo + hi) / 2, hi - lo);
+}
+function toBitmap(img, canvas, c, w, g) {
+  canvas.width = img.w; canvas.height = img.h;
+  const ctx = canvas.getContext("2d"), id = ctx.createImageData(img.w, img.h), px = id.data, lo = c - w / 2;
+  for (let i = 0; i < img.d.length; i++) {
+    let v = (img.d[i] - lo) / w; v = v < 0 ? 0 : v > 1 ? 1 : v;
+    if (g !== 1) v = Math.pow(v, g);
+    const b = (v * 255 + 0.5) | 0;
+    px[4 * i] = px[4 * i + 1] = px[4 * i + 2] = b; px[4 * i + 3] = 255;
+  }
+  ctx.putImageData(id, 0, 0);
+}
+function procWindow() {
+  if (!$("autoProc").checked) return [S.wc, S.ww];
+  const lo = percentile(S.proc.d, 1), hi = percentile(S.proc.d, 99);
+  return [(lo + hi) / 2, Math.max(hi - lo, 1e-6)];
+}
+function renderBitmaps() {
+  if (!S.orig || !S.proc) return;
+  toBitmap(S.orig, S.bitmapO, S.wc, S.ww, S.gamma);
+  S.procWin = procWindow();
+  toBitmap(S.proc, S.bitmapP, S.procWin[0], S.procWin[1], S.gamma);
+}
+
+const cvO = $("cvO"), cvP = $("cvP");
+function sizeCanvas(cv) {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const W = Math.max(1, Math.round(r.width * dpr)), H = Math.max(1, Math.round(r.height * dpr));
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  return [r.width, r.height, dpr];
+}
+const aspect = () => S.orig ? S.orig.rx / S.orig.ry : 1;   // display width of one column (row units)
+function fitView() {
+  if (!S.orig) return;
+  const r = cvO.getBoundingClientRect(), W = S.orig.w * aspect(), H = S.orig.h;
+  S.view.scale = 0.96 * Math.min(r.width / W, r.height / H) || 1;
+  S.view.cx = W / 2; S.view.cy = H / 2;
+  draw();
+}
+function draw() {
+  for (const [cv, bm] of [[cvO, S.bitmapO], [cvP, S.bitmapP]]) {
+    const [w, h, dpr] = sizeCanvas(cv), ctx = cv.getContext("2d");
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = "#000"; ctx.fillRect(0, 0, cv.width, cv.height);
+    if (!S.orig) continue;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = $("smooth").checked;
+    const { scale, cx, cy } = S.view, W = S.orig.w * aspect(), H = S.orig.h;
+    ctx.drawImage(bm, w / 2 - cx * scale, h / 2 - cy * scale, W * scale, H * scale);
+  }
+}
+function screenToPixel(cv, sx, sy) {
+  const r = cv.getBoundingClientRect(), { scale, cx, cy } = S.view;
+  const ix = (sx - r.left - r.width / 2) / scale + cx, iy = (sy - r.top - r.height / 2) / scale + cy;
+  return [Math.floor(ix / aspect()), Math.floor(iy)];
+}
+
+// pointer interaction (pan, pinch, window/level, readout) shared by both canvases
+const pointers = new Map();
+let dragMode = null, last = null, pinch0 = null;
+function onDown(e) {
+  if (!S.orig) return;
+  e.target.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    pinch0 = { d: Math.hypot(a.x - b.x, a.y - b.y), scale: S.view.scale };
+    dragMode = "pinch";
+  } else {
+    dragMode = (e.button === 2 || e.shiftKey) ? "wl" : "pan";
+    e.target.classList.add("dragging");
+  }
+  last = { x: e.clientX, y: e.clientY, wc: S.wc, ww: S.ww };
+}
+function onMove(e) {
+  readout(e);
+  if (!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (dragMode === "pinch" && pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    zoomAt(e.target, (a.x + b.x) / 2, (a.y + b.y) / 2, pinch0.scale * d / pinch0.d / S.view.scale);
+  } else if (dragMode === "pan") {
+    S.view.cx -= (e.clientX - last.x) / S.view.scale; S.view.cy -= (e.clientY - last.y) / S.view.scale;
+    last.x = e.clientX; last.y = e.clientY; draw();
+  } else if (dragMode === "wl") {
+    const f = Math.max(S.ww, 1) / 200;
+    setWindow(last.wc + (e.clientY - last.y) * f, Math.max(1e-6, last.ww + (e.clientX - last.x) * f));
+    renderBitmaps(); draw(); drawHistogram();
+  }
+}
+function onUp(e) {
+  pointers.delete(e.pointerId);
+  e.target.classList.remove("dragging");
+  if (pointers.size < 2) pinch0 = null;
+  if (pointers.size === 0) dragMode = null;
+  else if (pointers.size === 1) { dragMode = "pan"; const p = [...pointers.values()][0]; last = { x: p.x, y: p.y }; }
+}
+function zoomAt(cv, sx, sy, factor) {
+  const r = cv.getBoundingClientRect(), { scale } = S.view;
+  const ix = (sx - r.left - r.width / 2) / scale + S.view.cx, iy = (sy - r.top - r.height / 2) / scale + S.view.cy;
+  const ns = Math.min(200, Math.max(0.02, scale * factor));
+  S.view.cx = ix - (sx - r.left - r.width / 2) / ns; S.view.cy = iy - (sy - r.top - r.height / 2) / ns;
+  S.view.scale = ns; draw();
+}
+function readout(e) {
+  if (!S.orig) return;
+  const [c, r] = screenToPixel(e.target, e.clientX, e.clientY);
+  if (c >= 0 && r >= 0 && c < S.orig.w && r < S.orig.h) {
+    const i = r * S.orig.w + c;
+    $("readout").textContent = `(x=${c}, y=${r})   original = ${fmt(S.orig.d[i])}   processed = ${fmt(S.proc.d[i])}`;
+  } else $("readout").textContent = "";
+}
+const fmt = v => Math.abs(v) >= 1e5 || (Math.abs(v) < 1e-3 && v !== 0) ? v.toExponential(3) : (+v.toPrecision(5)).toString();
+for (const cv of [cvO, cvP]) {
+  cv.addEventListener("pointerdown", onDown);
+  cv.addEventListener("pointermove", onMove);
+  cv.addEventListener("pointerup", onUp);
+  cv.addEventListener("pointercancel", onUp);
+  cv.addEventListener("contextmenu", e => e.preventDefault());
+  cv.addEventListener("dblclick", fitView);
+  cv.addEventListener("wheel", e => { e.preventDefault(); if (S.orig) zoomAt(cv, e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+}
+new ResizeObserver(() => { draw(); drawHistogram(); }).observe($("views"));
+
+// ---------- histogram
+const hcv = $("hist");
+let histGeom = null, histDrag = null;
+function drawHistogram() {
+  const [w, h, dpr] = sizeCanvas(hcv), ctx = hcv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+  if (!S.orig || !S.proc) { histGeom = null; return; }
+  const [a0, a1] = minmax(S.orig.d), [b0, b1] = minmax(S.proc.d);
+  let lo = Math.min(a0, b0), hi = Math.max(a1, b1); if (hi <= lo) hi = lo + 1;
+  const nb = 256, hist = d => { const c = new Float64Array(nb); for (const v of d) { let b = Math.floor((v - lo) / (hi - lo) * nb); if (b >= nb) b = nb - 1; if (b < 0) b = 0; c[b]++; } return c; };
+  let ho = hist(S.orig.d), hp = hist(S.proc.d);
+  const logy = $("logy").checked;
+  if (logy) { ho = ho.map(v => Math.log10(v + 1)); hp = hp.map(v => Math.log10(v + 1)); }
+  const ymax = Math.max(...ho, ...hp) || 1;
+  const L = 52, R = 10, T = 6, B = 22, pw = w - L - R, ph = h - T - B;
+  const X = v => L + (v - lo) / (hi - lo) * pw, Y = c => T + ph - c / ymax * ph;
+  histGeom = { X, inv: x => lo + (x - L) / pw * (hi - lo) };
+  // axes
+  ctx.strokeStyle = "#3a404b"; ctx.lineWidth = 1; ctx.fillStyle = "#8d95a3"; ctx.font = "11px system-ui";
+  ctx.beginPath(); ctx.moveTo(L, T); ctx.lineTo(L, T + ph); ctx.lineTo(L + pw, T + ph); ctx.stroke();
+  ctx.textAlign = "center"; ctx.textBaseline = "top";
+  for (const v of niceTicks(lo, hi, Math.max(2, Math.floor(pw / 80)))) {
+    ctx.beginPath(); ctx.moveTo(X(v), T + ph); ctx.lineTo(X(v), T + ph + 4); ctx.stroke();
+    ctx.fillText(fmt(v), X(v), T + ph + 6);
+  }
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  for (const v of niceTicks(0, ymax, 3)) { ctx.fillText(logy ? "10^" + fmt(v) : fmt(v), L - 5, Y(v)); }
+  // curves
+  for (const [c, col, fill] of [[ho, "#4fa3ff", "rgba(79,163,255,.22)"], [hp, "#ff6b5b", "rgba(255,107,91,.18)"]]) {
+    ctx.beginPath(); ctx.moveTo(X(lo), Y(0));
+    for (let b = 0; b < nb; b++) { const x0 = X(lo + b * (hi - lo) / nb), x1 = X(lo + (b + 1) * (hi - lo) / nb); ctx.lineTo(x0, Y(c[b])); ctx.lineTo(x1, Y(c[b])); }
+    ctx.lineTo(X(hi), Y(0)); ctx.closePath();
+    ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 1.2; ctx.stroke();
+  }
+  // window lines
+  ctx.setLineDash([5, 4]); ctx.strokeStyle = "#e3e6eb"; ctx.lineWidth = 1.3;
+  for (const v of [S.wc - S.ww / 2, S.wc + S.ww / 2]) {
+    const x = Math.min(L + pw, Math.max(L, X(v)));
+    ctx.beginPath(); ctx.moveTo(x, T); ctx.lineTo(x, T + ph); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+}
+function niceTicks(a, b, n) {
+  const span = b - a; if (!(span > 0)) return [a];
+  const step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 5, 10].map(m => m * mag).find(s => s >= step0);
+  const out = []; for (let v = Math.ceil(a / step) * step; v <= b + 1e-9 * span; v += step) out.push(+v.toPrecision(12));
+  return out;
+}
+hcv.addEventListener("pointerdown", e => {
+  if (!histGeom) return;
+  const x = e.clientX - hcv.getBoundingClientRect().left;
+  const xl = histGeom.X(S.wc - S.ww / 2), xh = histGeom.X(S.wc + S.ww / 2);
+  const dl = Math.abs(x - xl), dh = Math.abs(x - xh);
+  if (Math.min(dl, dh) > 10) return;
+  histDrag = dl < dh ? "lo" : "hi"; hcv.setPointerCapture(e.pointerId);
+});
+hcv.addEventListener("pointermove", e => {
+  if (!histGeom) return;
+  const x = e.clientX - hcv.getBoundingClientRect().left;
+  if (!histDrag) {
+    const near = Math.min(Math.abs(x - histGeom.X(S.wc - S.ww / 2)), Math.abs(x - histGeom.X(S.wc + S.ww / 2))) <= 10;
+    hcv.style.cursor = near ? "ew-resize" : "default"; return;
+  }
+  let lo = S.wc - S.ww / 2, hi = S.wc + S.ww / 2;
+  if (histDrag === "lo") lo = histGeom.inv(x); else hi = histGeom.inv(x);
+  if (hi < lo) { [lo, hi] = [hi, lo]; histDrag = histDrag === "lo" ? "hi" : "lo"; }
+  setWindow((lo + hi) / 2, hi - lo); renderBitmaps(); draw(); drawHistogram();
+});
+hcv.addEventListener("pointerup", () => histDrag = null);
+
+// ---------- processing chain UI
+for (const [k, [label]] of Object.entries(STEP_TYPES)) $("addType").add(new Option(label, k));
+function renderSteps() {
+  const ul = $("steps"); ul.innerHTML = "";
+  if (!S.steps.length) { ul.innerHTML = '<li class="empty">No steps — processed image = original</li>'; }
+  S.steps.forEach((s, i) => {
+    const li = document.createElement("li"); if (i === S.sel) li.className = "sel";
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = s.enabled; cb.title = "Enable/disable";
+    cb.onclick = ev => { ev.stopPropagation(); s.enabled = cb.checked; schedule(); };
+    const lab = document.createElement("span"); lab.className = "lab"; lab.textContent = `${i + 1}. ${stepLabel(s)}`;
+    li.append(cb, lab); li.onclick = () => { S.sel = i; renderSteps(); renderEditor(); };
+    ul.append(li);
+  });
+}
+function relabel() { const li = $("steps").children[S.sel]; if (li && S.steps[S.sel]) li.querySelector(".lab").textContent = `${S.sel + 1}. ${stepLabel(S.steps[S.sel])}`; }
+
+function numRow(label, p, key, attrs, after) {
+  const row = document.createElement("div"); row.className = "row";
+  const l = document.createElement("label"); l.className = "l"; l.textContent = label;
+  const inp = document.createElement("input"); inp.type = "number"; inp.value = p[key]; Object.assign(inp, attrs); inp.className = "grow";
+  inp.oninput = () => { const v = parseFloat(inp.value); if (Number.isFinite(v)) { p[key] = v; relabel(); after?.(); schedule(); } };
+  row.append(l, inp); return row;
+}
+function hint(text) { const d = document.createElement("p"); d.className = "hint"; d.textContent = text; return d; }
+
+function renderEditor() {
+  const ed = $("editor"); ed.innerHTML = "";
+  const s = S.steps[S.sel];
+  if (!s) { ed.append(hint("Add a step, then select it to edit its parameters.")); return; }
+  const p = s.params;
+  switch (s.type) {
+    case "gaussian": {
+      const h = hint("");
+      const upd = () => { const n = gaussianKernel1d(p.sigma).length; h.textContent = `Kernel ${n}×${n} (radius ⌈3σ⌉), applied separably (rows then columns).`; };
+      ed.append(numRow("σ (pixels)", p, "sigma", { min: 0.1, max: 20, step: 0.1 }, upd), h); upd(); break;
+    }
+    case "mean": ed.append(numRow("Size (odd)", p, "size", { min: 3, max: 31, step: 2 })); break;
+    case "unsharp":
+      ed.append(numRow("σ (pixels)", p, "sigma", { min: 0.1, max: 20, step: 0.1 }),
+                numRow("Amount", p, "amount", { min: 0, max: 10, step: 0.1 }),
+                hint("out = img + amount × (img − Gaussian(img))")); break;
+    case "stretch":
+      ed.append(numRow("Low %", p, "low", { min: 0, max: 50, step: 0.5 }), numRow("High %", p, "high", { min: 50, max: 100, step: 0.5 }),
+                hint("Maps the chosen percentile range linearly onto the image's full intensity range, clipping outside it.")); break;
+    case "equalise":
+      ed.append(numRow("Bins", p, "nbins", { min: 16, max: 4096, step: 16 }),
+                hint("Maps each intensity through the cumulative histogram so the output histogram is (approximately) flat.")); break;
+    case "laplacian": case "sobel":
+      ed.append(hint("No parameters. These outputs are centred near 0 — tick 'Auto window processed image separately' to see them.")); break;
+    case "custom": renderKernelEditor(ed, p); break;
+  }
+}
+
+function safeEval(str) {
+  if (!/^[\d\s+\-*/().eE]*$/.test(str) || !str.trim()) return NaN;
+  try { return Function(`"use strict";return (${str})`)(); } catch { return NaN; }
+}
+function renderKernelEditor(ed, p) {
+  const top = document.createElement("div"); top.className = "row";
+  const size = document.createElement("select");
+  for (const n of [3, 5, 7]) size.add(new Option(`${n}×${n}`, n));
+  size.value = p.kernel.length;
+  const preset = document.createElement("select"); preset.className = "grow";
+  preset.add(new Option("Load preset…", ""));
+  for (const k of Object.keys(KERNEL_PRESETS)) preset.add(new Option(k, k));
+  top.append(size, preset);
+  const grid = document.createElement("div"); grid.className = "kgrid";
+  const bottom = document.createElement("div"); bottom.className = "row";
+  const sum = document.createElement("span"); sum.className = "grow";
+  const norm = document.createElement("button"); norm.textContent = "Normalise (sum → 1)";
+  bottom.append(sum, norm);
+  const absRow = document.createElement("label"); absRow.className = "row";
+  const abs = document.createElement("input"); abs.type = "checkbox"; abs.checked = !!p.absolute;
+  absRow.append(abs, " Take absolute value of output (edge kernels)");
+  const fill = () => {
+    const n = p.kernel.length; grid.innerHTML = ""; grid.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+    p.kernel.forEach((row, i) => row.forEach((v, j) => {
+      const inp = document.createElement("input"); inp.value = +v.toPrecision(4);
+      if (i === n >> 1 && j === n >> 1) inp.className = "c";
+      inp.oninput = () => { const x = safeEval(inp.value); inp.style.color = Number.isFinite(x) ? "" : "var(--accent2)";
+        p.kernel[i][j] = Number.isFinite(x) ? x : 0; updSum(); schedule(); };
+      grid.append(inp);
+    }));
+    updSum();
+  };
+  const updSum = () => { sum.textContent = "Sum = " + +p.kernel.flat().reduce((a, b) => a + b, 0).toPrecision(4); relabel(); };
+  size.onchange = () => {
+    const n = +size.value, old = p.kernel, m = Math.min(n, old.length), oo = (old.length - m) >> 1, no = (n - m) >> 1;
+    const k = Array.from({ length: n }, () => new Array(n).fill(0));
+    for (let i = 0; i < m; i++) for (let j = 0; j < m; j++) k[no + i][no + j] = old[oo + i][oo + j];
+    p.kernel = k; fill(); schedule();
+  };
+  preset.onchange = () => { if (!preset.value) return; p.kernel = KERNEL_PRESETS[preset.value].map(r => r.slice()); size.value = p.kernel.length; preset.value = ""; fill(); schedule(); };
+  norm.onclick = () => {
+    const s = p.kernel.flat().reduce((a, b) => a + b, 0);
+    if (Math.abs(s) < 1e-12) { alert("Kernel sums to zero (e.g. an edge detector) — cannot normalise."); return; }
+    p.kernel = p.kernel.map(r => r.map(v => v / s)); fill(); schedule();
+  };
+  abs.onchange = () => { p.absolute = abs.checked; relabel(); schedule(); };
+  ed.append(top, grid, bottom, absRow, hint("Cells accept expressions such as 1/9. The highlighted cell is the kernel centre. Convolution flips the kernel (matters for asymmetric kernels such as Sobel)."));
+  fill();
+}
+
+$("btnAdd").onclick = () => {
+  const t = $("addType").value;
+  S.steps.push({ type: t, params: structuredClone(STEP_TYPES[t][1]), enabled: true });
+  S.sel = S.steps.length - 1; renderSteps(); renderEditor(); schedule();
+};
+$("btnUp").onclick = () => move(-1); $("btnDown").onclick = () => move(1);
+function move(d) {
+  const i = S.sel, j = i + d; if (i < 0 || j < 0 || j >= S.steps.length) return;
+  [S.steps[i], S.steps[j]] = [S.steps[j], S.steps[i]]; S.sel = j; renderSteps(); schedule();
+}
+$("btnRemove").onclick = () => { if (S.sel < 0) return; S.steps.splice(S.sel, 1); S.sel = Math.min(S.sel, S.steps.length - 1); renderSteps(); renderEditor(); schedule(); };
+$("btnClear").onclick = () => { S.steps = []; S.sel = -1; renderSteps(); renderEditor(); schedule(); };
+$("boundary").onchange = schedule;
+
+// ---------- display controls
+$("wc").oninput = () => { const v = parseFloat($("wc").value); if (Number.isFinite(v)) { S.wc = v; renderBitmaps(); draw(); drawHistogram(); } };
+$("ww").oninput = () => { const v = parseFloat($("ww").value); if (v > 0) { S.ww = v; renderBitmaps(); draw(); drawHistogram(); } };
+$("gamma").oninput = () => { S.gamma = +$("gamma").value; $("gammaVal").textContent = S.gamma.toFixed(2); renderBitmaps(); draw(); };
+$("autoProc").onchange = () => { renderBitmaps(); draw(); };
+$("smooth").onchange = draw;
+$("logy").onchange = drawHistogram;
+$("wpreset").onchange = () => {
+  const v = $("wpreset").value; $("wpreset").value = "";
+  if (!S.orig || !v) return;
+  if (v === "auto") autoWindow(S.orig.d);
+  else if (v === "full") { const [a, b] = minmax(S.orig.d); setWindow((a + b) / 2, Math.max(b - a, 1e-3)); }
+  else if (v === "dicom") { if (S.vol.defaultWindow) setWindow(...S.vol.defaultWindow); else return setInfo("No window values in the DICOM header", true); }
+  else setWindow(...v.split(",").map(Number));
+  renderBitmaps(); draw(); drawHistogram();
+};
+$("axis").onchange = () => { setupSliceSlider(); extractSlice(); recompute(); fitView(); };
+$("slice").oninput = () => { extractSlice(); schedule(); };
+$("frame").oninput = () => { extractSlice(); schedule(); };
+
+// ---------- metadata
+const KEY_ATTRS = [
+  ["PatientName", "Patient name"], ["PatientID", "Patient ID"], ["PatientBirthDate", "Birth date"], ["PatientSex", "Sex"],
+  ["PatientAge", "Age"], ["StudyDate", "Study date"], ["StudyDescription", "Study description"],
+  ["SeriesDescription", "Series description"], ["Modality", "Modality"], ["Manufacturer", "Manufacturer"],
+  ["ManufacturerModelName", "Model"], ["MagneticFieldStrength", "Field strength (T)"], ["BodyPartExamined", "Body part"],
+  ["ProtocolName", "Protocol"], ["SequenceName", "Sequence name"], ["ScanningSequence", "Scanning sequence"],
+  ["RepetitionTime", "TR (ms)"], ["EchoTime", "TE (ms)"], ["InversionTime", "TI (ms)"], ["FlipAngle", "Flip angle (°)"],
+  ["KVP", "kVp"], ["XRayTubeCurrent", "Tube current (mA)"], ["ConvolutionKernel", "Recon kernel"],
+  ["SliceThickness", "Slice thickness (mm)"], ["SpacingBetweenSlices", "Slice spacing (mm)"], ["PixelSpacing", "Pixel spacing (mm)"],
+  ["Rows", "Rows"], ["Columns", "Columns"], ["NumberOfFrames", "Frames"], ["InstanceNumber", "Instance number"],
+  ["ImagePositionPatient", "Image position"], ["ImageOrientationPatient", "Image orientation"],
+  ["PhotometricInterpretation", "Photometric"], ["BitsAllocated", "Bits allocated"], ["BitsStored", "Bits stored"],
+  ["PixelRepresentation", "Pixel representation"], ["RescaleSlope", "Rescale slope"], ["RescaleIntercept", "Rescale intercept"],
+  ["WindowCenter", "Window centre"], ["WindowWidth", "Window width"],
+];
+const IDENTIFYING = new Set(["PatientName", "PatientID", "PatientBirthDate"].map(k => KW_TO_TAG[k]));
+function currentHeader() {
+  if (!S.vol || !S.vol.headers.length) return null;
+  return $("axis").value === "axial" ? S.vol.headers[+$("slice").value] : S.vol.headers[S.vol.headers.length >> 1];
+}
+function showVal(v) { return Array.isArray(v) ? v.map(x => typeof x === "number" ? +x.toPrecision(6) : x).join(" \\ ") : String(v).replace(/\\/g, " \\ "); }
+function updateMetadata() {
+  const ds = currentHeader(), tb = $("keyTable");
+  tb.innerHTML = "";
+  if (!ds) { tb.innerHTML = `<tr><td colspan="2">No DICOM header (${S.vol ? S.vol.kind : "nothing loaded"})</td></tr>`; $("dump").textContent = ""; return; }
+  const show = $("showId").checked;
+  tb.append(...[["Transfer syntax", TS_NAMES[ds.ts] || ds.ts]].concat(
+    KEY_ATTRS.filter(([kw]) => ds.byTag.has(KW_TO_TAG[kw])).map(([kw, name]) =>
+      [name, IDENTIFYING.has(KW_TO_TAG[kw]) && !show ? "••••••" : showVal(dsGet(ds, kw))])
+  ).map(([a, b]) => { const tr = document.createElement("tr"); tr.innerHTML = "<td></td><td></td>"; tr.cells[0].textContent = a; tr.cells[1].textContent = b; return tr; }));
+  updateDump();
+}
+function updateDump() {
+  const ds = currentHeader(); if (!ds) return;
+  const f = $("filter").value.toLowerCase(), show = $("showId").checked, lines = [];
+  for (const el of ds.elements) {
+    const d = DICOM_DICT[el.tag];
+    let name = d ? d.name : ((el.tag & 0xffff) === 0 ? "Group Length" : (((el.tag >>> 16) & 1) ? "Private tag" : "Unknown"));
+    let val = el.tag === 0x7FE00010 ? (el.encapsulated ? "<encapsulated / compressed>" : `<${el.length} bytes>`)
+            : (IDENTIFYING.has(el.tag) && !show ? "••••••" : showVal(elementValue(ds, el)));
+    if (val.length > 120) val = val.slice(0, 117) + "…";
+    const s = `${"  ".repeat(el.depth)}${tagStr(el.tag)} ${name.slice(0, 34).padEnd(34)} ${el.vr}: ${val}`;
+    if (!f || s.toLowerCase().includes(f)) lines.push(s);
+  }
+  $("dump").textContent = lines.join("\n");
+}
+$("showId").onchange = updateMetadata; $("filter").oninput = updateDump;
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b));
+  $("tabKey").hidden = b.dataset.tab !== "key"; $("tabFull").hidden = b.dataset.tab !== "full";
+});
+
+// ---------- files, drag & drop, export
+function setInfo(t, err) { $("info").textContent = t; $("info").classList.toggle("err", !!err); }
+$("btnOpen").onclick = () => $("fileInput").click();
+$("btnFolder").onclick = () => $("folderInput").click();
+$("fileInput").onchange = e => { loadFiles([...e.target.files]); e.target.value = ""; };
+$("folderInput").onchange = e => { loadFiles([...e.target.files].filter(f => !/\.(txt|xml|json|jpg|png|pdf|html?)$/i.test(f.name))); e.target.value = ""; };
+$("btnDemo").onclick = () => setVolume(makePhantom());
+$("btnExport").onclick = () => {
+  if (!S.proc) return;
+  const a = document.createElement("a");
+  a.download = "processed.png"; a.href = S.bitmapP.toDataURL("image/png"); a.click();
+};
+async function entryFiles(entry) {
+  if (entry.isFile) return [await new Promise((res, rej) => entry.file(res, rej))];
+  const reader = entry.createReader(), out = [];
+  let batch;
+  do { batch = await new Promise((res, rej) => reader.readEntries(res, rej)); for (const e of batch) out.push(...await entryFiles(e)); } while (batch.length);
+  return out;
+}
+document.addEventListener("dragover", e => e.preventDefault());
+document.addEventListener("drop", async e => {
+  e.preventDefault();
+  const items = [...(e.dataTransfer.items || [])].map(i => i.webkitGetAsEntry?.()).filter(Boolean);
+  const files = items.length ? (await Promise.all(items.map(entryFiles))).flat() : [...e.dataTransfer.files];
+  loadFiles(files);
+});
+
+renderSteps(); renderEditor(); draw();
+</script>
+</body>
+</html>
